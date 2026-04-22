@@ -84,13 +84,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync localStorage data to database
   const syncLocalStorageToDb = useCallback(async (userId: string) => {
     try {
-      // Sync player profiles
+      // Sync player profiles (Batch Insert)
       const localPlayers = localStorage.getItem('legend_players');
       if (localPlayers) {
         const players = JSON.parse(localPlayers);
-        for (const p of players) {
-          const { error } = await supabase.from('player_profiles').upsert({
-            id: p.id?.length === 36 ? p.id : undefined, // only use if UUID
+        if (players.length > 0) {
+          const playersToSync = players.map(p => ({
+            id: p.id?.length === 36 ? p.id : undefined,
             user_id: userId,
             name: p.name,
             position: p.position,
@@ -98,17 +98,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             team_name: p.teamName,
             age: p.age,
             season_year: p.seasonYear,
-          }, { onConflict: 'id' }).select();
+          }));
+          await supabase.from('player_profiles').upsert(playersToSync, { onConflict: 'id' });
         }
         localStorage.removeItem('legend_players');
       }
 
-      // Sync game sessions
+      // Sync game sessions (Batch Insert)
       const localSessions = localStorage.getItem('legend_sessions');
       if (localSessions) {
         const sessions = JSON.parse(localSessions);
-        for (const s of sessions) {
-          await supabase.from('game_sessions').insert({
+        if (sessions.length > 0) {
+          const sessionsToSync = sessions.map(s => ({
             user_id: userId,
             player_id: null,
             date: s.date,
@@ -122,17 +123,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             team_name: s.teamName,
             player_name: s.playerName,
             age: s.age,
-          });
+          }));
+          await supabase.from('game_sessions').insert(sessionsToSync);
         }
         localStorage.removeItem('legend_sessions');
       }
 
-      // Sync coach reports
+      // Sync coach reports (Batch Insert)
       const localReports = localStorage.getItem('legend_coach_reports');
       if (localReports) {
         const reports = JSON.parse(localReports);
-        for (const r of reports) {
-          await supabase.from('coach_reports').insert({
+        if (reports.length > 0) {
+          const reportsToSync = reports.map(r => ({
             user_id: userId,
             date: r.date,
             team_name: r.teamName,
@@ -141,7 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             youtube_url: r.youtubeUrl,
             report: r.report,
             coach_notes: r.coachNotes,
-          });
+          }));
+          await supabase.from('coach_reports').insert(reportsToSync);
         }
         localStorage.removeItem('legend_coach_reports');
       }
@@ -162,10 +165,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (s?.user) {
         const profile = await fetchUserProfile(s.user);
         setUser(profile);
-        // Sync any localStorage data
-        await syncLocalStorageToDb(s.user.id);
+        setLoading(false); // Set loading false early
+        syncLocalStorageToDb(s.user.id); // Sync in background
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // Listen for auth changes
@@ -174,13 +178,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (s?.user) {
         const profile = await fetchUserProfile(s.user);
         setUser(profile);
+        setLoading(false); // Ensure loading is false
         if (event === 'SIGNED_IN') {
-          await syncLocalStorageToDb(s.user.id);
+          syncLocalStorageToDb(s.user.id); // Sync in background
         }
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -216,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(profile);
       setSession(data.session);
-      await syncLocalStorageToDb(data.user.id);
+      syncLocalStorageToDb(data.user.id);
     }
 
     return { error: null };
@@ -236,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await fetchUserProfile(data.user);
       setUser(profile);
       setSession(data.session);
-      await syncLocalStorageToDb(data.user.id);
+      syncLocalStorageToDb(data.user.id);
       return { error: null, role: profile?.role };
     }
 
