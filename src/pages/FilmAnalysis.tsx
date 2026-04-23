@@ -161,8 +161,13 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
     setResults(null);
     setSaved(false);
 
+    const playerInfo = {
+      name: playerName,
+      jersey: playerTags[0]?.jersey || jerseyNumber,
+      team: teamName,
+      age: age,
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-film', {
+      const { data, error: invokeError } = await supabase.functions.invoke('analyze-film', {
         body: {
           youtubeUrl,
           position,
@@ -184,7 +189,17 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
         },
       });
 
-      if (error) throw error;
+      if (invokeError) {
+        console.error('Supabase function error:', invokeError);
+        let detail = '';
+        try {
+          const errorText = await invokeError.context?.text();
+          detail = errorText || '';
+        } catch (e) {}
+        
+        throw new Error(`AI Analysis failed: ${invokeError.message}. ${detail ? `Server says: ${detail}` : 'Check if GEMINI_API_KEY is set in Supabase Secrets.'}`);
+      }
+
       if (data?.data) {
         setResults(data.data);
         if (data.data.suggestedStats) {
@@ -192,6 +207,8 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
         }
         // Change #1 integration
         saveGameToHistory(data.data);
+      } else if (data?.analysis) {
+        setResults({ analysis: data.analysis, overallGrade: data.overallGrade || 'DEVELOPING', letterGrade: data.letterGrade || 'B' });
       }
     } catch (err: any) {
       console.error('Analysis error:', err);
