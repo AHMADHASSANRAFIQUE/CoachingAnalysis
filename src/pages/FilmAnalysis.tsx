@@ -161,11 +161,6 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
     setResults(null);
     setSaved(false);
 
-    const playerInfo = {
-      name: playerName,
-      jersey: playerTags[0]?.jersey || jerseyNumber,
-      team: teamName,
-      age: age,
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('analyze-film', {
         body: {
