@@ -206,22 +206,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // If user is confirmed immediately (no email verification)
     if (data.user && data.session) {
-      // Create user profile with role
-      await supabase.from('user_profiles').insert({
-        user_id: data.user.id,
-        email: data.user.email,
+      const confirmedUser = data.user;
+      const confirmedSession = data.session;
+      
+      // Create user profile with role in background
+      supabase.from('user_profiles').insert({
+        user_id: confirmedUser.id,
+        email: confirmedUser.email,
         role,
         display_name: email.split('@')[0],
+      }).then(() => {
+        // Only then do we sync data
+        syncLocalStorageToDb(confirmedUser.id);
       });
 
       const profile: AuthUser = {
-        id: data.user.id,
-        email: data.user.email || '',
+        id: confirmedUser.id,
+        email: confirmedUser.email || '',
         role,
       };
       setUser(profile);
-      setSession(data.session);
-      syncLocalStorageToDb(data.user.id);
+      setSession(confirmedSession);
+      setLoading(false);
     }
 
     return { error: null };
