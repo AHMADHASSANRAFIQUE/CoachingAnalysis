@@ -198,6 +198,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          role: role
+        }
+      }
     });
 
     if (error) {
@@ -244,11 +249,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (data.user) {
-      const profile = await fetchUserProfile(data.user);
+      // Get role from metadata first (FAST)
+      const role = data.user.user_metadata?.role || 'player';
+      
+      const profile: AuthUser = {
+        id: data.user.id,
+        email: data.user.email || '',
+        role: role,
+      };
+
       setUser(profile);
       setSession(data.session);
+      setLoading(false); // Immediate access
+
+      // Fetch full profile and sync in background
+      fetchUserProfile(data.user).then(p => {
+        if (p) setUser(p);
+      });
       syncLocalStorageToDb(data.user.id);
-      return { error: null, role: profile?.role };
+      
+      return { error: null, role };
     }
 
     return { error: 'Login failed' };
