@@ -25,8 +25,8 @@ serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY is not set')
     }
 
-    // Call Gemini API - Using gemini-1.5-flash for maximum speed
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Call Gemini API - Using gemini-3-flash-preview as requested
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
