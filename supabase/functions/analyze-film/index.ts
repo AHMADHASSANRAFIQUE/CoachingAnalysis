@@ -35,16 +35,16 @@ serve(async (req: Request) => {
           }]
         }],
         generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
+          temperature: 0.4, // Lower temperature is faster and more focused
+          topK: 32,
+          topP: 0.8,
+          maxOutputTokens: 1024, // Sufficient for a detailed coach report but faster to generate
         }
       })
     })
 
     const data = await response.json()
-    
+
     if (data.error) {
       throw new Error(data.error.message || 'Gemini API Error')
     }
