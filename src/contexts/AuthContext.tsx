@@ -163,10 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       if (s?.user) {
-        const profile = await fetchUserProfile(s.user);
-        setUser(profile);
-        setLoading(false); // Set loading false early
-        syncLocalStorageToDb(s.user.id); // Sync in background
+        // Fast path: use metadata first
+        const initialUser: AuthUser = {
+          id: s.user.id,
+          email: s.user.email || '',
+          role: s.user.user_metadata?.role || 'player',
+        };
+        setUser(initialUser);
+        setLoading(false);
+
+        // Slow path: fetch full profile and sync in background
+        fetchUserProfile(s.user).then(profile => {
+          if (profile) setUser(profile);
+        });
+        syncLocalStorageToDb(s.user.id);
       } else {
         setLoading(false);
       }
@@ -176,11 +186,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
       if (s?.user) {
-        const profile = await fetchUserProfile(s.user);
-        setUser(profile);
-        setLoading(false); // Ensure loading is false
-        if (event === 'SIGNED_IN') {
-          syncLocalStorageToDb(s.user.id); // Sync in background
+        // Fast path: use metadata first
+        const initialUser: AuthUser = {
+          id: s.user.id,
+          email: s.user.email || '',
+          role: s.user.user_metadata?.role || 'player',
+        };
+        setUser(initialUser);
+        setLoading(false);
+
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          // Slow path: fetch full profile and sync in background
+          fetchUserProfile(s.user).then(profile => {
+            if (profile) setUser(profile);
+          });
+          syncLocalStorageToDb(s.user.id);
         }
       } else {
         setUser(null);

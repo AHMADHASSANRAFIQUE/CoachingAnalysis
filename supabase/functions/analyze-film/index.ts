@@ -14,7 +14,10 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { videoUrl, prompt, positionGroup, playerInfo } = await req.json()
+    const body = await req.json()
+    const videoUrl = body.videoUrl || body.youtubeUrl
+    const { prompt, positionGroup, playerInfo } = body
+    
     // @ts-ignore: Deno is available in Supabase Edge Functions
     const apiKey = Deno.env.get('GEMINI_API_KEY')
 
@@ -22,8 +25,8 @@ serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY is not set')
     }
 
-    // Call Gemini API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+    // Call Gemini API - Using gemini-1.5-flash for maximum speed
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -31,14 +34,14 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `${prompt}\n\nAnalyze this football film: ${videoUrl}`
+            text: `${prompt}\n\nAnalyze this football film: ${videoUrl || 'No URL provided'}`
           }]
         }],
         generationConfig: {
-          temperature: 0.4, // Lower temperature is faster and more focused
-          topK: 32,
-          topP: 0.8,
-          maxOutputTokens: 1024, // Sufficient for a detailed coach report but faster to generate
+          temperature: 0.2, // Even lower for faster, more consistent output
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
         }
       })
     })
