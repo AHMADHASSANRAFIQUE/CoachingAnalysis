@@ -37,52 +37,66 @@ serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY is not set')
     }
 
-    // Call Gemini API - Using gemini-3-flash-preview as requested
-    // We enforce JSON output to match the frontend expectations
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${customPrompt || 'Analyze this football film.'}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object. Do not include any markdown formatting like \`\`\`json or \`\`\`. 
-            
-            The JSON structure MUST be:
-            {
-              "overallGrade": "ELITE | DEVELOPING | NEEDS CONSISTENCY",
-              "letterGrade": "A+ | A | B | etc.",
-              "overview": "Detailed narrative summary",
-              "categories": [
-                { "name": "Skill Name", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "feedback": "Detailed feedback" }
-              ],
-              "plays": [
-                { "play": "Play 1", "time": "MM:SS", "action": "Action description", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "notes": "Coaching notes" }
-              ],
-              "areasForGrowth": [
-                { "area": "Technique Name", "currentLevel": "DEVELOPING", "recommendation": "Drill description" }
-              ],
-              "suggestedStats": {
-                "passingYards": 0, "rushingYards": 0, "completions": 0, "attempts": 0, "touchdowns": 0, "interceptions": 0
-              }
-            }`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.1, // High consistency for JSON
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json"
+    // Call Gemini API with retry logic for 'High Demand' (503) errors
+    let response;
+    let result;
+    const maxRetries = 3;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `${customPrompt || 'Analyze this football film.'}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object. Do not include any markdown formatting like \`\`\`json or \`\`\`. 
+              
+              The JSON structure MUST be:
+              {
+                "overallGrade": "ELITE | DEVELOPING | NEEDS CONSISTENCY",
+                "letterGrade": "A+ | A | B | etc.",
+                "overview": "Detailed narrative summary",
+                "categories": [
+                  { "name": "Skill Name", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "feedback": "Detailed feedback" }
+                ],
+                "plays": [
+                  { "play": "Play 1", "time": "MM:SS", "action": "Action description", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "notes": "Coaching notes" }
+                ],
+                "areasForGrowth": [
+                  { "area": "Technique Name", "currentLevel": "DEVELOPING", "recommendation": "Drill description" }
+                ],
+                "suggestedStats": {
+                  "passingYards": 0, "rushingYards": 0, "completions": 0, "attempts": 0, "touchdowns": 0, "interceptions": 0
+                }
+              }`
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+            responseMimeType: "application/json"
+          }
+        })
+      });
+
+      result = await response.json();
+
+      if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
+        console.log(`Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+        if (attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); // Exponential backoff
+          continue;
         }
-      })
-    })
+      }
+      break; // Success or non-retryable error
+    }
 
-    const result = await response.json()
-
-    if (result.error) {
-      throw new Error(result.error.message || 'Gemini API Error')
+    if (!response || !response.ok || result.error) {
+      throw new Error(result.error?.message || `Gemini API Error (Status ${response?.status})`);
     }
 
     const jsonString = result.candidates[0].content.parts[0].text
