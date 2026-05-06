@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { saveGameSession, getPlayerProfiles, generateId, getTeamName, getLocalGameHistory, saveLocalGameHistory, getLocalBenchmarks, saveLocalBenchmarks, GameHistoryEntry } from '@/lib/storage';
+import { saveGameSession, getPlayerProfiles, generateId, getTeamName, getLocalGameHistory, saveLocalGameHistory, getLocalBenchmarks, saveLocalBenchmarks, GameHistoryEntry, getMonthlyAnalysisCount } from '@/lib/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareReportModal from '@/components/ShareReportModal';
 import PricingAdModal from '@/components/PricingAdModal';
@@ -46,7 +46,21 @@ const FilmAnalysis: React.FC = () => {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showPricingAd, setShowPricingAd] = useState(true);
+  const [showPricingAd, setShowPricingAd] = useState(false);
+  const [analysisCount, setAnalysisCount] = useState(0);
+
+  // Check monthly limit on mount
+  React.useEffect(() => {
+    const checkLimit = async () => {
+      const count = await getMonthlyAnalysisCount();
+      setAnalysisCount(count);
+      // If they've already used their free analysis, show the ad immediately
+      if (count >= 1) {
+        setShowPricingAd(true);
+      }
+    };
+    checkLimit();
+  }, []);
 
   // Change #2: Real QB Metrics
   const [qbStats, setQbStats] = useState({
@@ -159,6 +173,14 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
 
   const analyzeFilm = async () => {
     if (!youtubeUrl) return;
+
+    // Check limit before starting
+    const currentCount = await getMonthlyAnalysisCount();
+    if (currentCount >= 1) {
+      setShowPricingAd(true);
+      return;
+    }
+
     setLoading(true);
     setResults(null);
     setSaved(false);

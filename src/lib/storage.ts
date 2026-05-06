@@ -438,3 +438,34 @@ export const getLocalBenchmarks = (): PlayerStatBenchmarks | null => {
 export const saveLocalBenchmarks = (benchmarks: PlayerStatBenchmarks): void => {
   localStorage.setItem('legend_benchmarks', JSON.stringify(benchmarks));
 };
+
+// ============ Usage Tracking (Free Limit) ============
+
+export const getMonthlyAnalysisCount = async (): Promise<number> => {
+  const userId = await getCurrentUserId();
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  if (!userId) {
+    const sessions = JSON.parse(localStorage.getItem('legend_sessions') || '[]');
+    // Filter by date string (YYYY-MM-DD)
+    return sessions.filter((s: any) => new Date(s.date) >= startOfMonth).length;
+  }
+
+  // Count from Supabase using created_at
+  const { count, error } = await supabase
+    .from('game_sessions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfMonth.toISOString());
+
+  if (error) {
+    console.error('Error fetching monthly count:', error);
+    // In case of error, fetch all sessions and filter locally as fallback
+    const sessions = await getGameSessions();
+    return sessions.filter(s => new Date(s.date) >= startOfMonth).length;
+  }
+
+  return count || 0;
+};
