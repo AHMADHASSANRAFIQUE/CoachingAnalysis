@@ -13,11 +13,10 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // If already logged in, redirect
+  // If already logged in, redirect to landing page
   React.useEffect(() => {
     if (user) {
-      if (user.role === 'coach') navigate('/coaches');
-      else navigate('/player-profile');
+      navigate('/');
     }
   }, [user, navigate]);
 
@@ -52,11 +51,8 @@ const Login: React.FC = () => {
         if (signInError) {
           setError(signInError);
         } else {
-          if (userRole === 'coach') {
-            navigate('/coaches');
-          } else {
-            navigate('/player-profile');
-          }
+          // Redirect to home page
+          navigate('/');
         }
       }
     } catch (err: any) {

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { saveGameSession, getPlayerProfiles, generateId, getTeamName, getLocalGameHistory, saveLocalGameHistory, getLocalBenchmarks, saveLocalBenchmarks, GameHistoryEntry } from '@/lib/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareReportModal from '@/components/ShareReportModal';
+import PricingAdModal from '@/components/PricingAdModal';
 
 interface PlayerTag {
   id: string;
@@ -45,6 +46,7 @@ const FilmAnalysis: React.FC = () => {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPricingAd, setShowPricingAd] = useState(true);
 
   // Change #2: Real QB Metrics
   const [qbStats, setQbStats] = useState({
@@ -696,6 +698,12 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           </div>
         </div>
       </div>
+
+      {/* Pricing Ad Modal */}
+      <PricingAdModal
+        isOpen={showPricingAd}
+        onClose={() => setShowPricingAd(false)}
+      />
 
       {/* Share Modal */}
       <ShareReportModal
