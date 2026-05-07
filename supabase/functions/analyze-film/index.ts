@@ -37,6 +37,51 @@ serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY is not set')
     }
 
+    const isCoachAnalysis = analysisType === 'coach-game';
+    
+    const playerSchema = `{
+      "overallGrade": "ELITE | DEVELOPING | NEEDS CONSISTENCY",
+      "letterGrade": "A+ | A | B | etc.",
+      "overview": "Detailed narrative summary",
+      "categories": [
+        { "name": "Skill Name", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "feedback": "Detailed feedback" }
+      ],
+      "plays": [
+        { "play": "Play 1", "time": "MM:SS", "action": "Action description", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "notes": "Coaching notes" }
+      ],
+      "areasForGrowth": [
+        { "area": "Technique Name", "currentLevel": "DEVELOPING", "recommendation": "Drill description" }
+      ],
+      "suggestedStats": {
+        "passingYards": 0, "rushingYards": 0, "completions": 0, "attempts": 0, "touchdowns": 0, "interceptions": 0
+      }
+    }`;
+
+    const coachSchema = `{
+      "challenges": [
+        { "title": "Challenge Title", "grade": "NEEDS CONSISTENCY", "description": "What went wrong", "timestamps": "MM:SS", "recommendation": "How to fix" }
+      ],
+      "wins": [
+        { "title": "Win Title", "grade": "ELITE", "description": "What went well", "timestamps": "MM:SS", "buildOn": "How to double down" }
+      ],
+      "overallGrade": "B",
+      "gradeLabel": "DEVELOPING",
+      "assessment": "Detailed game assessment narrative",
+      "matchupNotes": "Notes about player vs player matchups",
+      "playCalling": {
+        "offense": { "runPassRatio": "60/40", "tendencies": "Heavy run on 1st down", "redZoneGrade": "B", "thirdDownGrade": "C", "predictabilityScore": "High", "wrongCalls": "2 specific plays", "recommendations": "Use more play action" },
+        "defense": { "coverageSchemes": "Mostly Cover 3", "blitzRate": "25% with 10% success", "halftimeAdjustments": "Moved to man-to-man", "vulnerabilities": "Deep seams" }
+      },
+      "topPerformers": [
+        { "name": "Player Name", "position": "QB", "grade": "A", "highlights": "3 TDs, 0 INTs" }
+      ]
+    }`;
+
+    const selectedSchema = isCoachAnalysis ? coachSchema : playerSchema;
+    const systemInstructions = isCoachAnalysis 
+      ? `You are Coach Prime. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights.`
+      : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.`;
+
     // Call Gemini API with retry logic for 'High Demand' (503) errors
     let response;
     let result;
@@ -51,26 +96,10 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `${customPrompt || 'Analyze this football film.'}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object. Do not include any markdown formatting like \`\`\`json or \`\`\`. 
+              text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object. Do not include any markdown formatting. 
               
               The JSON structure MUST be:
-              {
-                "overallGrade": "ELITE | DEVELOPING | NEEDS CONSISTENCY",
-                "letterGrade": "A+ | A | B | etc.",
-                "overview": "Detailed narrative summary",
-                "categories": [
-                  { "name": "Skill Name", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "feedback": "Detailed feedback" }
-                ],
-                "plays": [
-                  { "play": "Play 1", "time": "MM:SS", "action": "Action description", "grade": "ELITE | DEVELOPING | NEEDS CONSISTENCY", "notes": "Coaching notes" }
-                ],
-                "areasForGrowth": [
-                  { "area": "Technique Name", "currentLevel": "DEVELOPING", "recommendation": "Drill description" }
-                ],
-                "suggestedStats": {
-                  "passingYards": 0, "rushingYards": 0, "completions": 0, "attempts": 0, "touchdowns": 0, "interceptions": 0
-                }
-              }`
+              ${selectedSchema}`
             }]
           }],
           generationConfig: {
