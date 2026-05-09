@@ -152,8 +152,19 @@ serve(async (req: Request) => {
     try {
       analysisData = JSON.parse(jsonString);
     } catch (e) {
-      console.error('JSON Parse Error. Raw string:', jsonString);
-      throw new Error('AI returned an invalid data format. Please try again.');
+      console.log('Initial JSON parse failed. Attempting regex extraction. Raw string:', jsonString);
+      // Attempt to extract the JSON object using regex if the model included conversational text
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          analysisData = JSON.parse(jsonMatch[0]);
+        } catch (innerError) {
+          console.error('Regex extraction parse failed:', innerError);
+          throw new Error('AI returned an invalid data structure. Please try again.');
+        }
+      } else {
+        throw new Error('AI failed to return a valid JSON object. Please try again.');
+      }
     }
 
     return new Response(
