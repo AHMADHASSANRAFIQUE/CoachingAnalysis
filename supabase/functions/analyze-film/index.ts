@@ -82,61 +82,86 @@ serve(async (req: Request) => {
       ? `You are Coach Prime. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.`;
 
+    // Using gemini-3-flash-preview as requested
+    const model = "gemini-3-flash-preview";
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
     // Call Gemini API with retry logic for 'High Demand' (503) errors
     let response;
     let result;
     const maxRetries = 3;
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object. Do not include any markdown formatting. 
-              
-              The JSON structure MUST be:
-              ${selectedSchema}`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json"
+      try {
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object only. Do not include any markdown formatting like \`\`\`json. 
+                
+                The JSON structure MUST be:
+                ${selectedSchema}`
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
+            }
+          })
+        });
+
+        result = await response.json();
+
+        if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
+          console.log(`Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+          if (attempt < maxRetries - 1) {
+            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            continue;
           }
-        })
-      });
-
-      result = await response.json();
-
-      if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
-        console.log(`Attempt ${attempt + 1} failed due to high demand. Retrying...`);
-        if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); // Exponential backoff
-          continue;
         }
+        break;
+      } catch (e) {
+        console.error(`Attempt ${attempt + 1} network error:`, e);
+        if (attempt < maxRetries - 1) continue;
+        throw e;
       }
-      break; // Success or non-retryable error
     }
 
     if (!response || !response.ok || result.error) {
-      throw new Error(result.error?.message || `Gemini API Error (Status ${response?.status})`);
+      const errorMsg = result.error?.message || `Gemini API Error (Status ${response?.status})`;
+      console.error('Gemini API Error:', result.error);
+      throw new Error(errorMsg);
     }
 
-    const jsonString = result.candidates[0].content.parts[0].text
-    const analysisData = JSON.parse(jsonString)
+    if (!result.candidates || !result.candidates[0]) {
+      throw new Error('AI failed to generate a response. Please try again.');
+    }
+
+    let jsonString = result.candidates[0].content.parts[0].text;
+    
+    // Clean JSON string - remove markdown code blocks if present
+    jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    let analysisData;
+    try {
+      analysisData = JSON.parse(jsonString);
+    } catch (e) {
+      console.error('JSON Parse Error. Raw string:', jsonString);
+      throw new Error('AI returned an invalid data format. Please try again.');
+    }
 
     return new Response(
       JSON.stringify({
         data: analysisData,
-        analysis: analysisData.overview, // Fallback
+        analysis: analysisData.overview || analysisData.assessment || "Analysis complete",
         overallGrade: analysisData.overallGrade,
-        letterGrade: analysisData.letterGrade
+        letterGrade: analysisData.letterGrade || analysisData.gradeLabel
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
