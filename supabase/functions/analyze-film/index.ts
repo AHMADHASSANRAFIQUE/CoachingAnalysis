@@ -152,19 +152,21 @@ serve(async (req: Request) => {
     try {
       analysisData = JSON.parse(jsonString);
     } catch (e) {
-      console.log('Initial JSON parse failed. Attempting regex extraction. Raw string:', jsonString);
-      // Attempt to extract the JSON object using regex if the model included conversational text
-      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          analysisData = JSON.parse(jsonMatch[0]);
-        } catch (innerError) {
-          console.error('Regex extraction parse failed:', innerError);
-          throw new Error('AI returned an invalid data structure. Please try again.');
-        }
-      } else {
-        throw new Error('AI failed to return a valid JSON object. Please try again.');
-      }
+      console.log('JSON parsing failed, falling back to raw text response.');
+      // Fallback: Create a structured object with the raw text so the frontend can still display it
+      analysisData = {
+        overallGrade: "N/A",
+        letterGrade: "N/A",
+        gradeLabel: "ANALYSIS COMPLETE",
+        overview: jsonString, // For players
+        assessment: jsonString, // For coaches
+        categories: [],
+        plays: [],
+        challenges: [],
+        wins: [],
+        areasForGrowth: [],
+        suggestedStats: {}
+      };
     }
 
     return new Response(
