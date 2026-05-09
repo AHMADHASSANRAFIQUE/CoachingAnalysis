@@ -101,7 +101,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object only. Do not include any markdown formatting like \`\`\`json. 
+                text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
                 
                 The JSON structure MUST be:
                 ${selectedSchema}`
@@ -111,7 +111,7 @@ serve(async (req: Request) => {
               temperature: 0.1,
               topK: 40,
               topP: 0.95,
-              maxOutputTokens: 2048,
+              maxOutputTokens: 8192,
             }
           })
         });
