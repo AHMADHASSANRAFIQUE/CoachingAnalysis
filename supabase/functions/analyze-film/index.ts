@@ -169,7 +169,10 @@ serve(async (req: Request) => {
   } catch (error: any) {
     console.error('Function error:', error)
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal Server Error' }),
+      JSON.stringify({ 
+        error: error.message || 'Internal Server Error',
+        details: error.stack || 'No details available'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
