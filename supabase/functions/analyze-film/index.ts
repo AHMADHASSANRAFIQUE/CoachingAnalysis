@@ -79,8 +79,10 @@ serve(async (req: Request) => {
 
     const selectedSchema = isCoachAnalysis ? coachSchema : playerSchema;
     const systemInstructions = isCoachAnalysis 
-      ? `You are Coach Prime. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights.`
-      : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.`;
+      ? `You are Coach Prime. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights. 
+         IMPORTANT: DO NOT reference NFL players or games. Focus ONLY on the provided team and opponent. If you cannot visually verify the film, rely strictly on the provided metadata and descriptors.`
+      : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
+         IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. Use ONLY the provided descriptors (e.g. jersey color, cleats) and stats to provide a realistic assessment.`;
 
     // Using gemini-3-flash-preview as requested
     const model = "gemini-3-flash-preview";
