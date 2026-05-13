@@ -4,15 +4,25 @@ import { saveCoachReport, getCoachReports, generateId, getTeamName, type CoachGa
 import { useAuth } from '@/contexts/AuthContext';
 import ShareReportModal from '@/components/ShareReportModal';
 
-const GradeBadge: React.FC<{ grade: string; variant?: 'success' | 'warning' | 'danger' }> = ({ grade, variant }) => {
-  const colors = {
-    success: 'bg-[#CDFD51]/20 text-[#CDFD51] border-[#CDFD51]/30',
-    warning: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    danger: 'bg-red-500/20 text-red-400 border-red-500/30',
-  };
-  const auto = grade === 'ELITE' ? 'success' : grade === 'DEVELOPING' ? 'warning' : 'danger';
+const getGradeColor = (grade: string, letter?: string) => {
+  const normalizedGrade = grade?.toUpperCase() || '';
+  const normalizedLetter = letter?.toUpperCase() || '';
+  
+  if (normalizedGrade === 'ELITE' || normalizedLetter.startsWith('A')) {
+    return 'bg-[#CDFD51]/20 text-[#CDFD51] border-[#CDFD51]/30';
+  }
+  if (normalizedGrade === 'DEVELOPING' || normalizedLetter.startsWith('B')) {
+    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  }
+  if (normalizedGrade === 'NEEDS CONSISTENCY' || ['C', 'D', 'F'].includes(normalizedLetter[0])) {
+    return 'bg-red-500/20 text-red-400 border-red-500/30';
+  }
+  return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+};
+
+const GradeBadge: React.FC<{ grade: string, letter?: string }> = ({ grade, letter }) => {
   return (
-    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold border ${colors[variant || auto]}`}>
+    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${getGradeColor(grade, letter)}`}>
       {grade}
     </span>
   );
@@ -21,6 +31,8 @@ const GradeBadge: React.FC<{ grade: string; variant?: 'success' | 'warning' | 'd
 const Coaches: React.FC = () => {
   const { user } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [jerseyColor, setJerseyColor] = useState('');
+  const [roster, setRoster] = useState('');
   const [teamName, setTeamName] = useState(getTeamName() || '');
   const [opponent, setOpponent] = useState('');
   const [gameDate, setGameDate] = useState('');
@@ -38,7 +50,31 @@ const Coaches: React.FC = () => {
       setPastReports(reports);
     };
     loadReports();
+
+    // Restore from sessionStorage
+    const savedSession = sessionStorage.getItem('last_coach_analysis');
+    if (savedSession) {
+      const data = JSON.parse(savedSession);
+      setYoutubeUrl(data.youtubeUrl || '');
+      setTeamName(data.teamName || '');
+      setJerseyColor(data.jerseyColor || '');
+      setOpponent(data.opponent || '');
+      setReport(data.report || null);
+    }
   }, []);
+
+  // Save to sessionStorage
+  useEffect(() => {
+    if (report || youtubeUrl || teamName) {
+      sessionStorage.setItem('last_coach_analysis', JSON.stringify({
+        youtubeUrl,
+        teamName,
+        jerseyColor,
+        opponent,
+        report
+      }));
+    }
+  }, [report, youtubeUrl, teamName, jerseyColor, opponent]);
 
   const analyzeGame = async () => {
     if (!youtubeUrl) return;
@@ -50,14 +86,13 @@ const Coaches: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('analyze-film', {
         body: {
           youtubeUrl,
-          position: 'COACH',
           teamName,
-          playerName: opponent,
-          age: gameDate,
-          jerseyNumber: gameType,
-          startTime: '',
-          descriptors: '',
+          opponent,
+          gameDate,
+          gameType,
           analysisType: 'coach-game',
+          jerseyColor,
+          roster,
         },
       });
 
@@ -134,24 +169,43 @@ const Coaches: React.FC = () => {
         <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6 mb-8">
           <h2 className="text-lg font-bold text-white mb-4">Game Analysis Input</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="sm:col-span-2 lg:col-span-3">
-              <label className="block text-[#999] text-xs mb-1">Game YouTube URL</label>
-              <input
-                value={youtubeUrl}
-                onChange={e => setYoutubeUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
-                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[#999] text-xs mb-1">Team Name</label>
-              <input
-                value={teamName}
-                onChange={e => setTeamName(e.target.value)}
-                placeholder="Your team name"
-                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
-              />
-            </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-[#999] text-xs mb-1">Game YouTube URL</label>
+                <input
+                  value={youtubeUrl}
+                  onChange={e => setYoutubeUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[#999] text-xs mb-1">Team Name</label>
+                <input
+                  value={teamName}
+                  onChange={e => setTeamName(e.target.value)}
+                  placeholder="Your team name"
+                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[#999] text-xs mb-1">Jersey Color</label>
+                <input
+                  value={jerseyColor}
+                  onChange={e => setJerseyColor(e.target.value)}
+                  placeholder="e.g. Blue/White"
+                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+                />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label className="block text-[#999] text-xs mb-1">Team Roster (Optional)</label>
+                <textarea
+                  value={roster}
+                  onChange={e => setRoster(e.target.value)}
+                  placeholder="Names/Numbers..."
+                  rows={3}
+                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none resize-none"
+                />
+              </div>
             <div>
               <label className="block text-[#999] text-xs mb-1">Opponent Name</label>
               <input
@@ -206,7 +260,7 @@ const Coaches: React.FC = () => {
           <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-16 flex flex-col items-center justify-center mb-8">
             <div className="w-16 h-16 border-4 border-[#333] border-t-[#CDFD51] rounded-full animate-spin mb-6" />
             <p className="text-white font-medium mb-2">Analyzing Full Game...</p>
-            <p className="text-[#666] text-sm">Coach Prime is breaking down every phase of the game</p>
+            <p className="text-[#666] text-sm">Coach Legend is breaking down every phase of the game</p>
           </div>
         )}
 
@@ -226,7 +280,7 @@ const Coaches: React.FC = () => {
                   <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-red-500/50">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-white font-semibold">{c.title}</h3>
-                      <GradeBadge grade={c.grade || 'NEEDS CONSISTENCY'} variant="danger" />
+                      <GradeBadge grade={c.grade || 'NEEDS CONSISTENCY'} />
                     </div>
                     <p className="text-[#ccc] text-sm mb-2">{c.description}</p>
                     <p className="text-[#666] text-xs mb-2">{c.timestamps}</p>
@@ -251,7 +305,7 @@ const Coaches: React.FC = () => {
                   <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-[#CDFD51]/50">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-white font-semibold">{w.title}</h3>
-                      <GradeBadge grade={w.grade || 'ELITE'} variant="success" />
+                      <GradeBadge grade={w.grade || 'ELITE'} />
                     </div>
                     <p className="text-[#ccc] text-sm mb-2">{w.description}</p>
                     <p className="text-[#666] text-xs mb-2">{w.timestamps}</p>
@@ -267,12 +321,8 @@ const Coaches: React.FC = () => {
             <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
               <h2 className="text-xl font-bold text-white mb-4">OVERALL GAME ASSESSMENT</h2>
               <div className="flex items-center gap-4 mb-6">
-                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black ${
-                  report.gradeLabel === 'ELITE' ? 'bg-[#CDFD51]/20 text-[#CDFD51]' :
-                  report.gradeLabel === 'DEVELOPING' ? 'bg-yellow-500/20 text-yellow-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {report.overallGrade || 'B'}
+                <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(report.overallGrade, report.letterGrade)}`}>
+                  {report.letterGrade || 'B'}
                 </div>
                 <div>
                   <GradeBadge grade={report.gradeLabel || 'DEVELOPING'} />

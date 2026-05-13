@@ -25,6 +25,9 @@ serve(async (req: Request) => {
       startTime, 
       descriptors, 
       analysisType,
+      opponent,
+      jerseyColor,
+      roster,
       customPrompt 
     } = body
 
@@ -79,10 +82,16 @@ serve(async (req: Request) => {
 
     const selectedSchema = isCoachAnalysis ? coachSchema : playerSchema;
     const systemInstructions = isCoachAnalysis 
-      ? `You are Coach Prime. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights. 
-         IMPORTANT: DO NOT reference NFL players or games. Focus ONLY on the provided team and opponent. If you cannot visually verify the film, rely strictly on the provided metadata and descriptors.`
+      ? `You are Coach Legend. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights. 
+         IMPORTANT: NEVER reference NFL players or external teams like Duncanville, Desoto, or others. 
+         The ONLY two teams in this game are: ${teamName} (Your Team) vs ${opponent || 'the Opponent'}.
+         Focus strictly on ${teamName}'s Jersey Color (${jerseyColor || 'N/A'}). 
+         Use the provided Roster (${roster || 'Not provided'}) to identify players correctly.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
-         IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. Use ONLY the provided descriptors (e.g. jersey color, cleats) and stats to provide a realistic assessment.`;
+         IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
+         The game is: ${teamName} vs ${opponent || 'the Opponent'}.
+         Use ONLY the provided descriptors, Jersey Color (${jerseyColor || 'N/A'}), and Roster context to provide a realistic assessment.
+         NEVER mention teams like Duncanville or Desoto.`;
 
     // Using gemini-3-flash-preview as requested
     const model = "gemini-3-flash-preview";

@@ -15,14 +15,25 @@ interface PlayerTag {
 
 const POSITIONS = ['QB', 'WR', 'RB', 'TE', 'OL', 'DL', 'LB', 'DB', 'K/P'];
 
-const GradeBadge: React.FC<{ grade: string }> = ({ grade }) => {
-  const colors: Record<string, string> = {
-    'ELITE': 'bg-[#CDFD51]/20 text-[#CDFD51] border-[#CDFD51]/30',
-    'DEVELOPING': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    'NEEDS CONSISTENCY': 'bg-red-500/20 text-red-400 border-red-500/30',
-  };
+const getGradeColor = (grade: string, letter?: string) => {
+  const normalizedGrade = grade?.toUpperCase() || '';
+  const normalizedLetter = letter?.toUpperCase() || '';
+  
+  if (normalizedGrade === 'ELITE' || normalizedLetter.startsWith('A')) {
+    return 'bg-[#CDFD51]/20 text-[#CDFD51] border-[#CDFD51]/30';
+  }
+  if (normalizedGrade === 'DEVELOPING' || normalizedLetter.startsWith('B')) {
+    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  }
+  if (normalizedGrade === 'NEEDS CONSISTENCY' || ['C', 'D', 'F'].includes(normalizedLetter[0])) {
+    return 'bg-red-500/20 text-red-400 border-red-500/30';
+  }
+  return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+};
+
+const GradeBadge: React.FC<{ grade: string, letter?: string }> = ({ grade, letter }) => {
   return (
-    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold border ${colors[grade] || colors['DEVELOPING']}`}>
+    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold border ${getGradeColor(grade, letter)}`}>
       {grade}
     </span>
   );
@@ -38,6 +49,8 @@ const FilmAnalysis: React.FC = () => {
   const [jerseyNumber, setJerseyNumber] = useState('');
   const [startTime, setStartTime] = useState('');
   const [descriptors, setDescriptors] = useState('');
+  const [jerseyColor, setJerseyColor] = useState('');
+  const [roster, setRoster] = useState('');
   const [tagLabel, setTagLabel] = useState('');
   const [playerTags, setPlayerTags] = useState<PlayerTag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,18 +62,40 @@ const FilmAnalysis: React.FC = () => {
   const [showPricingAd, setShowPricingAd] = useState(false);
   const [analysisCount, setAnalysisCount] = useState(0);
 
-  // Check monthly limit on mount
+  // Check monthly limit and Restore Session on mount
   React.useEffect(() => {
     const checkLimit = async () => {
       const count = await getMonthlyAnalysisCount();
       setAnalysisCount(count);
-      // If they've already used their free analysis, show the ad immediately
-      if (count >= 1) {
-        setShowPricingAd(true);
-      }
+      if (count >= 1) setShowPricingAd(true);
     };
     checkLimit();
+
+    // Restore from sessionStorage
+    const savedSession = sessionStorage.getItem('last_analysis');
+    if (savedSession) {
+      const data = JSON.parse(savedSession);
+      setYoutubeUrl(data.youtubeUrl || '');
+      setPlayerName(data.playerName || '');
+      setTeamNameState(data.teamName || '');
+      setJerseyColor(data.jerseyColor || '');
+      setResults(data.results || null);
+      if (data.results?.suggestedStats) setStats(data.results.suggestedStats);
+    }
   }, []);
+
+  // Save results to sessionStorage whenever they change
+  React.useEffect(() => {
+    if (results || youtubeUrl || playerName) {
+      sessionStorage.setItem('last_analysis', JSON.stringify({
+        youtubeUrl,
+        playerName,
+        teamName,
+        jerseyColor,
+        results
+      }));
+    }
+  }, [results, youtubeUrl, playerName, teamName, jerseyColor]);
 
   // Change #2: Real QB Metrics
   const [qbStats, setQbStats] = useState({
@@ -104,12 +139,15 @@ const FilmAnalysis: React.FC = () => {
   };
 
   const buildGeminiPrompt = (playerInfo: any, qbStats: any) => {
-    const base = `You are an elite SEC head football coach with 25+ years of experience.
+    const base = `You are Coach Legend, an elite SEC head football coach with 25+ years of experience.
 You speak directly, use motivational language, and provide ADVANCED position-specific feedback.
-Player: ${playerInfo.name}, #${playerInfo.jersey}, Team: ${playerInfo.teamName}
+Player: ${playerInfo.name}, #${playerInfo.jersey}, Team: ${playerInfo.teamName} (${playerInfo.jerseyColor || 'N/A'})
 Age/Level: ${playerInfo.ageLevel}
+Team Roster: ${playerInfo.roster || 'Not provided'}
 Description for film identification: ${playerInfo.description}
-IMPORTANT: Compare ONLY to age-appropriate (${playerInfo.ageLevel}) benchmarks. NOT NFL.`;
+IMPORTANT: Compare ONLY to age-appropriate (${playerInfo.ageLevel}) benchmarks. NOT NFL.
+NEVER mention teams like Duncanville or Desoto unless they are explicitly named as the Opponent above.
+ONLY analyze the provided team and players. Do not hallucinate external context.`;
 
     const positions: Record<string, string> = {
       QB: `${base}
@@ -197,10 +235,14 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           startTime: playerTags[0]?.startTime || startTime,
           descriptors: playerTags.map(t => t.descriptors).join(', ') || descriptors,
           analysisType: 'player',
+          jerseyColor,
+          roster,
           customPrompt: buildGeminiPrompt({
             name: playerName,
             jersey: playerTags[0]?.jersey || jerseyNumber,
             teamName,
+            jerseyColor,
+            roster,
             ageLevel: age,
             position,
             description: playerTags.map(t => t.descriptors).join(', ') || descriptors
@@ -357,14 +399,37 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                 </select>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">Team Name</label>
+                  <input
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamNameState(e.target.value)}
+                    placeholder="e.g. Lincoln Tigers"
+                    className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">Jersey Color</label>
+                  <input
+                    type="text"
+                    value={jerseyColor}
+                    onChange={(e) => setJerseyColor(e.target.value)}
+                    placeholder="e.g. Red/White"
+                    className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-white text-sm font-medium mb-2">Team Name</label>
-                <input
-                  type="text"
-                  value={teamName}
-                  onChange={(e) => setTeamNameState(e.target.value)}
-                  placeholder="Enter your team name e.g. Lincoln Tigers"
-                  className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                <label className="block text-white text-sm font-medium mb-2">Team Roster (Optional)</label>
+                <textarea
+                  value={roster}
+                  onChange={(e) => setRoster(e.target.value)}
+                  placeholder="Paste player names and numbers to help AI identify them..."
+                  rows={3}
+                  className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
@@ -534,7 +599,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
               <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-16 flex flex-col items-center justify-center min-h-[500px]">
                 <div className="w-16 h-16 border-4 border-[#333] border-t-[#CDFD51] rounded-full animate-spin mb-6" />
                 <p className="text-white font-medium mb-2">Analyzing Film...</p>
-                <p className="text-[#666] text-sm">Coach Prime is reviewing every play</p>
+                <p className="text-[#666] text-sm">Coach Legend is reviewing every play</p>
               </div>
             )}
 
@@ -552,11 +617,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${
-                        results.overallGrade === 'ELITE' ? 'bg-[#CDFD51]/20 text-[#CDFD51]' :
-                        results.overallGrade === 'DEVELOPING' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
+                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(results.overallGrade, results.letterGrade)}`}>
                         {results.letterGrade || 'B'}
                       </div>
                       <div className="mt-1">
