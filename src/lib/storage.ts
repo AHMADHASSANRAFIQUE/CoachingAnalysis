@@ -245,6 +245,28 @@ export const saveGameSession = async (session: GameSession): Promise<GameSession
   return data ? { ...session, id: data.id } : null;
 };
 
+export const deleteGameSession = async (id: string): Promise<boolean> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    const sessions = JSON.parse(localStorage.getItem('legend_sessions') || '[]');
+    const filtered = sessions.filter((s: any) => s.id !== id);
+    localStorage.setItem('legend_sessions', JSON.stringify(filtered));
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('game_sessions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error deleting game session:', error);
+    return false;
+  }
+  return true;
+};
+
 // ============ Coach Reports ============
 
 export const getCoachReports = async (): Promise<CoachGameReport[]> => {
@@ -308,6 +330,28 @@ export const saveCoachReport = async (report: CoachGameReport): Promise<CoachGam
   }
 
   return data ? { ...report, id: data.id } : null;
+};
+
+export const deleteCoachReport = async (id: string): Promise<boolean> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    const reports = JSON.parse(localStorage.getItem('legend_coach_reports') || '[]');
+    const filtered = reports.filter((r: any) => r.id !== id);
+    localStorage.setItem('legend_coach_reports', JSON.stringify(filtered));
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('coach_reports')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error deleting coach report:', error);
+    return false;
+  }
+  return true;
 };
 
 // ============ Shared Reports ============

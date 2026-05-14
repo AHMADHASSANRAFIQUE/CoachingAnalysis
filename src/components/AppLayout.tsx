@@ -9,6 +9,7 @@ import Dashboard from '@/pages/Dashboard';
 import Coaches from '@/pages/Coaches';
 import Pricing from '@/pages/Pricing';
 import Login from '@/pages/Login';
+import History from '@/pages/History';
 import SharedReport from '@/pages/SharedReport';
 import ProtectedRoute from './ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +42,11 @@ const AppLayout: React.FC = () => {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/history" element={
+            <ProtectedRoute>
+              <History />
             </ProtectedRoute>
           } />
           <Route path="/coaches" element={

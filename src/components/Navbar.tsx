@@ -14,6 +14,7 @@ const Navbar: React.FC = () => {
     { to: '/film-analysis', label: 'Film Analysis' },
     { to: '/player-profile', label: 'Player Profile' },
     { to: '/dashboard', label: 'Dashboard' },
+    { to: '/history', label: 'History' },
     ...(isCoach || !user ? [{ to: '/coaches', label: 'Coaches' }] : []),
     { to: '/pricing', label: 'Pricing' },
   ];
