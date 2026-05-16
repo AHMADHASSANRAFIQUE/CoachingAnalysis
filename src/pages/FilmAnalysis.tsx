@@ -51,6 +51,7 @@ const FilmAnalysis: React.FC = () => {
   const [descriptors, setDescriptors] = useState('');
   const [jerseyColor, setJerseyColor] = useState('');
   const [roster, setRoster] = useState('');
+  const [playerTimestamps, setPlayerTimestamps] = useState('');
   const [tagLabel, setTagLabel] = useState('');
   const [playerTags, setPlayerTags] = useState<PlayerTag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +80,8 @@ const FilmAnalysis: React.FC = () => {
       setPlayerName(data.playerName || '');
       setTeamNameState(data.teamName || '');
       setJerseyColor(data.jerseyColor || '');
+      setRoster(data.roster || '');
+      setPlayerTimestamps(data.playerTimestamps || '');
       setResults(data.results || null);
       if (data.results?.suggestedStats) setStats(data.results.suggestedStats);
     }
@@ -92,10 +95,12 @@ const FilmAnalysis: React.FC = () => {
         playerName,
         teamName,
         jerseyColor,
+        roster,
+        playerTimestamps,
         results
       }));
     }
-  }, [results, youtubeUrl, playerName, teamName, jerseyColor]);
+  }, [results, youtubeUrl, playerName, teamName, jerseyColor, roster, playerTimestamps]);
 
   // Change #2: Real QB Metrics
   const [qbStats, setQbStats] = useState({
@@ -143,8 +148,10 @@ const FilmAnalysis: React.FC = () => {
 You speak directly, use motivational language, and provide ADVANCED position-specific feedback.
 Player: ${playerInfo.name}, #${playerInfo.jersey}, Team: ${playerInfo.teamName} (${playerInfo.jerseyColor || 'N/A'})
 Age/Level: ${playerInfo.ageLevel}
-Team Roster: ${playerInfo.roster || 'Not provided'}
+Team Roster (Mandatory): ${playerInfo.roster || 'Not provided'}
+Highlight Timestamps in Film: ${playerInfo.timestamps || 'Throughout film'}
 Description for film identification: ${playerInfo.description}
+CRITICAL INSTRUCTION FOR PLAYER DISAMBIGUATION: When multiple players appear at the same position (e.g., multiple QBs sharing snaps), you MUST evaluate ONLY the specific player active at the provided Highlight Timestamps (${playerInfo.timestamps || 'Throughout film'}). Do NOT credit, attribute, or grade plays from other players at this position.
 IMPORTANT: Compare ONLY to age-appropriate (${playerInfo.ageLevel}) benchmarks. NOT NFL.
 NEVER mention teams like Duncanville or Desoto unless they are explicitly named as the Opponent above.
 ONLY analyze the provided team and players. Do not hallucinate external context.`;
@@ -212,6 +219,17 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
   const analyzeFilm = async () => {
     if (!youtubeUrl) return;
 
+    if (!roster.trim()) {
+      alert("Please provide the Team Roster (Names and Jersey Numbers). This is mandatory for AI to accurately identify your player.");
+      return;
+    }
+
+    const effectiveTimestamps = playerTimestamps.trim() || playerTags.map(t => t.startTime).join(', ') || startTime;
+    if (!effectiveTimestamps.trim()) {
+      alert("Please provide Highlight Timestamps for your player (e.g., 01:24, 03:45). This is critical so AI doesn't evaluate another player at the same position.");
+      return;
+    }
+
     // Check limit before starting
     const currentCount = await getMonthlyAnalysisCount();
     if (currentCount >= 1) {
@@ -232,7 +250,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           playerName,
           age,
           jerseyNumber: playerTags[0]?.jersey || jerseyNumber,
-          startTime: playerTags[0]?.startTime || startTime,
+          startTime: effectiveTimestamps,
           descriptors: playerTags.map(t => t.descriptors).join(', ') || descriptors,
           analysisType: 'player',
           jerseyColor,
@@ -243,6 +261,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
             teamName,
             jerseyColor,
             roster,
+            timestamps: effectiveTimestamps,
             ageLevel: age,
             position,
             description: playerTags.map(t => t.descriptors).join(', ') || descriptors
@@ -423,13 +442,15 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
               </div>
 
               <div>
-                <label className="block text-white text-sm font-medium mb-2">Team Roster (Optional)</label>
+                <label className="block text-white text-sm font-medium mb-2 flex items-center gap-1">
+                  Team Roster <span className="text-red-400 font-bold">*Mandatory</span>
+                </label>
                 <textarea
                   value={roster}
                   onChange={(e) => setRoster(e.target.value)}
-                  placeholder="Paste player names and numbers to help AI identify them..."
+                  placeholder="Paste player names and numbers (e.g. #12 John Doe)..."
                   rows={3}
-                  className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors resize-none"
+                  className="w-full bg-[#2a2a2a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
@@ -452,6 +473,19 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                   onChange={(e) => setAge(e.target.value)}
                   placeholder="e.g. 12 years old / 7th grade"
                   className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white text-sm font-medium mb-2 flex items-center gap-1">
+                  Player Highlight Timestamps <span className="text-red-400 font-bold">*Mandatory</span>
+                </label>
+                <input
+                  type="text"
+                  value={playerTimestamps}
+                  onChange={(e) => setPlayerTimestamps(e.target.value)}
+                  placeholder="e.g., 01:24, 03:45, 08:12 (Critical for correct player ID)"
+                  className="w-full bg-[#2a2a2a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                 />
               </div>
 

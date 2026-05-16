@@ -86,12 +86,11 @@ serve(async (req: Request) => {
          IMPORTANT: NEVER reference NFL players or external teams like Duncanville, Desoto, or others. 
          The ONLY two teams in this game are: ${teamName} (Your Team) vs ${opponent || 'the Opponent'}.
          Focus strictly on ${teamName}'s Jersey Color (${jerseyColor || 'N/A'}). 
-         Use the provided Roster (${roster || 'Not provided'}) to identify players correctly.`
+         CRITICAL INSTRUCTION FOR CONSISTENCY & PLAYER SPOTLIGHT: For any given film URL, your evaluation MUST be highly consistent and reproducible. In the 'topPerformers' spotlight section, you MUST identify standout players STRICTLY from the provided Mandatory Roster (${roster || 'Mandatory roster not provided'}) and cite precise highlight timestamps for their standout plays.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
          The game is: ${teamName} vs ${opponent || 'the Opponent'}.
-         Use ONLY the provided descriptors, Jersey Color (${jerseyColor || 'N/A'}), and Roster context to provide a realistic assessment.
-         NEVER mention teams like Duncanville or Desoto.`;
+         CRITICAL INSTRUCTION FOR CONSISTENCY & PLAYER IDENTIFICATION: For any given film URL, your evaluation MUST be highly consistent and reproducible. Focus strictly on the player identified at the provided Highlight Timestamps (${startTime || 'Throughout film'}). Do NOT attribute or credit plays from other players at the same position. Use ONLY the provided descriptors, Jersey Color (${jerseyColor || 'N/A'}), and Roster context. NEVER mention teams like Duncanville or Desoto.`;
 
     // Using gemini-3-flash-preview as requested
     const model = "gemini-3-flash-preview";
@@ -119,7 +118,7 @@ serve(async (req: Request) => {
               }]
             }],
             generationConfig: {
-              temperature: 0.1,
+              temperature: 0.0,
               topK: 40,
               topP: 0.95,
               maxOutputTokens: 8192,

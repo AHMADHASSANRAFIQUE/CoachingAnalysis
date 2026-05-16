@@ -78,6 +78,10 @@ const Coaches: React.FC = () => {
 
   const analyzeGame = async () => {
     if (!youtubeUrl) return;
+    if (!roster.trim()) {
+      alert("Please provide the Team Roster (Player Names and Numbers). This is mandatory for Coach Legend to accurately identify players during evaluation.");
+      return;
+    }
     setLoading(true);
     setReport(null);
     setSaved(false);
@@ -197,13 +201,15 @@ const Coaches: React.FC = () => {
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-1">
-                <label className="block text-[#999] text-xs mb-1">Team Roster (Optional)</label>
+                <label className="block text-white font-medium text-xs mb-1 flex items-center gap-1">
+                  Team Roster <span className="text-red-400 font-bold">*Mandatory</span>
+                </label>
                 <textarea
                   value={roster}
                   onChange={e => setRoster(e.target.value)}
-                  placeholder="Names/Numbers..."
+                  placeholder="Names and Jersey Numbers (e.g., #12 John Doe)..."
                   rows={3}
-                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none resize-none"
+                  className="w-full bg-[#1a1a1a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none resize-none"
                 />
               </div>
             <div>
