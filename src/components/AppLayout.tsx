@@ -11,6 +11,7 @@ import Pricing from '@/pages/Pricing';
 import Login from '@/pages/Login';
 import History from '@/pages/History';
 import SharedReport from '@/pages/SharedReport';
+import FAQ from '@/pages/FAQ';
 import ProtectedRoute from './ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,6 +28,7 @@ const AppLayout: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/shared/:id" element={<SharedReport />} />
+          <Route path="/faq" element={<FAQ />} />
 
           {/* Protected Routes */}
           <Route path="/film-analysis" element={

@@ -62,21 +62,36 @@ serve(async (req: Request) => {
 
     const coachSchema = `{
       "challenges": [
-        { "title": "Challenge Title", "grade": "NEEDS CONSISTENCY", "description": "What went wrong", "timestamps": "MM:SS", "recommendation": "How to fix" }
+        { "title": "Challenge Title", "grade": "NEEDS CONSISTENCY", "description": "What went wrong", "timestamps": "MM:SS, MM:SS", "recommendation": "How to fix" }
       ],
       "wins": [
-        { "title": "Win Title", "grade": "ELITE", "description": "What went well", "timestamps": "MM:SS", "buildOn": "How to double down" }
+        { "title": "Win Title", "grade": "ELITE", "description": "What went well", "timestamps": "MM:SS, MM:SS", "buildOn": "How to double down" }
       ],
       "overallGrade": "B",
       "gradeLabel": "DEVELOPING",
       "assessment": "Detailed game assessment narrative",
-      "matchupNotes": "Notes about player vs player matchups",
+      "matchupNotes": "Notes about key matchups observed",
       "playCalling": {
         "offense": { "runPassRatio": "60/40", "tendencies": "Heavy run on 1st down", "redZoneGrade": "B", "thirdDownGrade": "C", "predictabilityScore": "High", "wrongCalls": "2 specific plays", "recommendations": "Use more play action" },
         "defense": { "coverageSchemes": "Mostly Cover 3", "blitzRate": "25% with 10% success", "halftimeAdjustments": "Moved to man-to-man", "vulnerabilities": "Deep seams" }
       },
-      "topPerformers": [
-        { "name": "Player Name", "position": "QB", "grade": "A", "highlights": "3 TDs, 0 INTs" }
+      "positionSpotlight": [
+        {
+          "position": "QB",
+          "grade": "A",
+          "summary": "Concise summary of what this position group did well and what needs work",
+          "keyPlays": [
+            { "timestamp": "MM:SS", "description": "What happened on this play and why it was notable", "playerTag": "" }
+          ]
+        },
+        {
+          "position": "WR",
+          "grade": "B",
+          "summary": "Summary for this position group",
+          "keyPlays": [
+            { "timestamp": "MM:SS", "description": "Play description", "playerTag": "" }
+          ]
+        }
       ]
     }`;
 
@@ -84,9 +99,10 @@ serve(async (req: Request) => {
     const systemInstructions = isCoachAnalysis 
       ? `You are Coach Legend. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights. 
          IMPORTANT: NEVER reference NFL players or external teams like Duncanville, Desoto, or others. 
-         The ONLY two teams in this game are: ${teamName} (Your Team) vs ${opponent || 'the Opponent'}.
-         Focus strictly on ${teamName}'s Jersey Color (${jerseyColor || 'N/A'}). 
-         CRITICAL INSTRUCTION FOR CONSISTENCY & PLAYER SPOTLIGHT: For any given film URL, your evaluation MUST be highly consistent and reproducible. In the 'topPerformers' spotlight section, you MUST identify standout players STRICTLY from the provided Mandatory Roster (${roster || 'Mandatory roster not provided'}) and cite precise highlight timestamps for their standout plays.`
+         The ONLY two teams in this game are: ${teamName} (Your Team, wearing ${jerseyColor || 'N/A'} jerseys) vs ${opponent || 'the Opponent'}.
+         CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
+         CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide 2-4 key play timestamps with specific descriptions of what happened. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
+         CRITICAL - CONSISTENCY: For any given film URL, your evaluation MUST be highly consistent and reproducible. Base all feedback strictly on observable film evidence. Do not speculate or fabricate plays.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
          The game is: ${teamName} vs ${opponent || 'the Opponent'}.

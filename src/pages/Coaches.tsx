@@ -7,7 +7,6 @@ import ShareReportModal from '@/components/ShareReportModal';
 const getGradeColor = (grade: string, letter?: string) => {
   const normalizedGrade = grade?.toUpperCase() || '';
   const normalizedLetter = letter?.toUpperCase() || '';
-  
   if (normalizedGrade === 'ELITE' || normalizedLetter.startsWith('A')) {
     return 'bg-[#CDFD51]/20 text-[#CDFD51] border-[#CDFD51]/30';
   }
@@ -20,19 +19,23 @@ const getGradeColor = (grade: string, letter?: string) => {
   return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
 };
 
-const GradeBadge: React.FC<{ grade: string, letter?: string }> = ({ grade, letter }) => {
-  return (
-    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${getGradeColor(grade, letter)}`}>
-      {grade}
-    </span>
-  );
-};
+const GradeBadge: React.FC<{ grade: string; letter?: string }> = ({ grade, letter }) => (
+  <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${getGradeColor(grade, letter)}`}>
+    {grade}
+  </span>
+);
+
+// Player tag attached to a specific timestamp in the position spotlight
+interface PlayPlayerTag {
+  positionIndex: number;
+  playIndex: number;
+  playerName: string;
+}
 
 const Coaches: React.FC = () => {
   const { user } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [jerseyColor, setJerseyColor] = useState('');
-  const [roster, setRoster] = useState('');
   const [teamName, setTeamName] = useState(getTeamName() || '');
   const [opponent, setOpponent] = useState('');
   const [gameDate, setGameDate] = useState('');
@@ -43,6 +46,8 @@ const Coaches: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [pastReports, setPastReports] = useState<CoachGameReport[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  // Player tags for position spotlight — keyed by "posIdx-playIdx"
+  const [playerTags, setPlayerTags] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const loadReports = async () => {
@@ -51,7 +56,6 @@ const Coaches: React.FC = () => {
     };
     loadReports();
 
-    // Restore from sessionStorage
     const savedSession = sessionStorage.getItem('last_coach_analysis');
     if (savedSession) {
       const data = JSON.parse(savedSession);
@@ -60,31 +64,24 @@ const Coaches: React.FC = () => {
       setJerseyColor(data.jerseyColor || '');
       setOpponent(data.opponent || '');
       setReport(data.report || null);
+      setPlayerTags(data.playerTags || {});
     }
   }, []);
 
-  // Save to sessionStorage
   useEffect(() => {
     if (report || youtubeUrl || teamName) {
       sessionStorage.setItem('last_coach_analysis', JSON.stringify({
-        youtubeUrl,
-        teamName,
-        jerseyColor,
-        opponent,
-        report
+        youtubeUrl, teamName, jerseyColor, opponent, report, playerTags,
       }));
     }
-  }, [report, youtubeUrl, teamName, jerseyColor, opponent]);
+  }, [report, youtubeUrl, teamName, jerseyColor, opponent, playerTags]);
 
   const analyzeGame = async () => {
     if (!youtubeUrl) return;
-    if (!roster.trim()) {
-      alert("Please provide the Team Roster (Player Names and Numbers). This is mandatory for Coach Legend to accurately identify players during evaluation.");
-      return;
-    }
     setLoading(true);
     setReport(null);
     setSaved(false);
+    setPlayerTags({});
 
     try {
       const { data, error } = await supabase.functions.invoke('analyze-film', {
@@ -96,14 +93,11 @@ const Coaches: React.FC = () => {
           gameType,
           analysisType: 'coach-game',
           jerseyColor,
-          roster,
         },
       });
 
       if (error) throw error;
-      if (data?.data) {
-        setReport(data.data);
-      }
+      if (data?.data) setReport(data.data);
     } catch (err: any) {
       console.error('Analysis error:', err);
       setReport({ error: err.message || 'Analysis failed' });
@@ -112,7 +106,30 @@ const Coaches: React.FC = () => {
     }
   };
 
+  const updatePlayerTag = (posIdx: number, playIdx: number, value: string) => {
+    const key = `${posIdx}-${playIdx}`;
+    setPlayerTags(prev => ({ ...prev, [key]: value }));
+    setSaved(false); // mark unsaved when tags change
+  };
+
+  // Merge current playerTags into the report's positionSpotlight before saving
+  const buildReportWithTags = () => {
+    if (!report?.positionSpotlight) return report;
+    const updated = {
+      ...report,
+      positionSpotlight: report.positionSpotlight.map((pos: any, posIdx: number) => ({
+        ...pos,
+        keyPlays: (pos.keyPlays || []).map((play: any, playIdx: number) => ({
+          ...play,
+          playerTag: playerTags[`${posIdx}-${playIdx}`] ?? play.playerTag ?? '',
+        })),
+      })),
+    };
+    return updated;
+  };
+
   const handleSaveReport = async () => {
+    const reportWithTags = buildReportWithTags();
     const r: CoachGameReport = {
       id: generateId(),
       date: gameDate || new Date().toISOString().split('T')[0],
@@ -120,19 +137,18 @@ const Coaches: React.FC = () => {
       opponent,
       gameType,
       youtubeUrl,
-      report,
+      report: reportWithTags,
       coachNotes,
       createdAt: new Date().toISOString(),
     };
     await saveCoachReport(r);
     setSaved(true);
-    // Refresh past reports
     const updated = await getCoachReports();
     setPastReports(updated);
   };
 
   const exportReport = () => {
-    const text = `LEGEND Game Report\n${'='.repeat(50)}\n\n${teamName} vs ${opponent}\nDate: ${gameDate}\nType: ${gameType}\n\nOverall Grade: ${report?.overallGrade || 'N/A'} (${report?.gradeLabel || 'N/A'})\n\nAssessment:\n${report?.assessment || 'N/A'}\n\nCoach Notes:\n${coachNotes}\n\n${JSON.stringify(report, null, 2)}`;
+    const text = `LEGEND Game Report\n${'='.repeat(50)}\n\n${teamName} vs ${opponent}\nDate: ${gameDate}\nType: ${gameType}\n\nOverall Grade: ${report?.overallGrade || 'N/A'} (${report?.gradeLabel || 'N/A'})\n\nAssessment:\n${report?.assessment || 'N/A'}\n\nCoach Notes:\n${coachNotes}\n\n${JSON.stringify(buildReportWithTags(), null, 2)}`;
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -142,14 +158,10 @@ const Coaches: React.FC = () => {
   };
 
   const getShareData = () => ({
-    teamName,
-    opponent,
-    date: gameDate,
-    gameType,
-    youtubeUrl,
-    report,
-    coachNotes,
+    teamName, opponent, date: gameDate, gameType, youtubeUrl,
+    report: buildReportWithTags(), coachNotes,
   });
+
 
   return (
     <div className="font-lexend min-h-screen pt-4">
@@ -173,45 +185,33 @@ const Coaches: React.FC = () => {
         <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6 mb-8">
           <h2 className="text-lg font-bold text-white mb-4">Game Analysis Input</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-[#999] text-xs mb-1">Game YouTube URL</label>
-                <input
-                  value={youtubeUrl}
-                  onChange={e => setYoutubeUrl(e.target.value)}
-                  placeholder="https://youtube.com/watch?v=..."
-                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[#999] text-xs mb-1">Team Name</label>
-                <input
-                  value={teamName}
-                  onChange={e => setTeamName(e.target.value)}
-                  placeholder="Your team name"
-                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[#999] text-xs mb-1">Jersey Color</label>
-                <input
-                  value={jerseyColor}
-                  onChange={e => setJerseyColor(e.target.value)}
-                  placeholder="e.g. Blue/White"
-                  className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
-                />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-1">
-                <label className="block text-white font-medium text-xs mb-1 flex items-center gap-1">
-                  Team Roster <span className="text-red-400 font-bold">*Mandatory</span>
-                </label>
-                <textarea
-                  value={roster}
-                  onChange={e => setRoster(e.target.value)}
-                  placeholder="Names and Jersey Numbers (e.g., #12 John Doe)..."
-                  rows={3}
-                  className="w-full bg-[#1a1a1a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none resize-none"
-                />
-              </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-[#999] text-xs mb-1">Game YouTube URL</label>
+              <input
+                value={youtubeUrl}
+                onChange={e => setYoutubeUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=..."
+                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[#999] text-xs mb-1">Team Name</label>
+              <input
+                value={teamName}
+                onChange={e => setTeamName(e.target.value)}
+                placeholder="Your team name"
+                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[#999] text-xs mb-1">Jersey Color</label>
+              <input
+                value={jerseyColor}
+                onChange={e => setJerseyColor(e.target.value)}
+                placeholder="e.g. Blue/White"
+                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+              />
+            </div>
             <div>
               <label className="block text-[#999] text-xs mb-1">Opponent Name</label>
               <input
@@ -273,6 +273,7 @@ const Coaches: React.FC = () => {
         {/* Report Display */}
         {report && !report.error && (
           <div className="space-y-6">
+
             {/* Challenges */}
             <div className="bg-[#2a2a2a] rounded-2xl border border-red-500/20 p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -388,21 +389,51 @@ const Coaches: React.FC = () => {
               </div>
             )}
 
-            {/* Player Spotlight */}
-            {report.topPerformers && (
+            {/* Position Spotlight */}
+            {report.positionSpotlight && report.positionSpotlight.length > 0 && (
               <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
-                <h2 className="text-xl font-bold text-white mb-4">PLAYER SPOTLIGHT</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {report.topPerformers.map((p: any, i: number) => (
-                    <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 text-center">
-                      <div className={`w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-lg font-bold ${
-                        i === 0 ? 'bg-[#CDFD51] text-[#1a1a1a]' : 'bg-[#444] text-white'
-                      }`}>
-                        {i + 1}
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-xl font-bold text-white">POSITION SPOTLIGHT</h2>
+                </div>
+                <p className="text-[#666] text-xs mb-6">AI-observed position group performance. Assign players to timestamps manually using the tag field — these save with your report.</p>
+                <div className="space-y-6">
+                  {(report.positionSpotlight as any[]).map((pos: any, posIdx: number) => (
+                    <div key={posIdx} className="bg-[#1a1a1a] rounded-xl p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 bg-[#CDFD51]/20 text-[#CDFD51] rounded-full text-xs font-bold">{pos.position}</span>
+                          <GradeBadge grade={pos.grade || 'DEVELOPING'} />
+                        </div>
                       </div>
-                      <div className="text-white font-bold">{p.name}</div>
-                      <div className="text-[#CDFD51] text-xs font-medium mt-1">{p.position} - Grade: {p.grade}</div>
-                      <p className="text-[#999] text-xs mt-2">{p.highlights}</p>
+                      <p className="text-[#ccc] text-sm mb-4 leading-relaxed">{pos.summary}</p>
+                      {pos.keyPlays && pos.keyPlays.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="text-[#666] text-xs font-semibold uppercase tracking-wider mb-2">Key Plays</div>
+                          {pos.keyPlays.map((play: any, playIdx: number) => {
+                            const tagKey = `${posIdx}-${playIdx}`;
+                            return (
+                              <div key={playIdx} className="bg-[#2a2a2a] rounded-lg p-3 flex flex-col sm:flex-row sm:items-start gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[#CDFD51] text-xs font-bold font-mono">{play.timestamp}</span>
+                                  </div>
+                                  <p className="text-[#ccc] text-xs leading-relaxed">{play.description}</p>
+                                </div>
+                                <div className="sm:w-48 flex-shrink-0">
+                                  <label className="block text-[#666] text-[10px] mb-1">Assign Player</label>
+                                  <input
+                                    type="text"
+                                    value={playerTags[tagKey] ?? (play.playerTag || '')}
+                                    onChange={e => updatePlayerTag(posIdx, playIdx, e.target.value)}
+                                    placeholder="Player name / #"
+                                    className="w-full bg-[#1a1a1a] border border-[#444] rounded px-2 py-1.5 text-white text-xs placeholder-[#555] focus:border-[#CDFD51] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -476,7 +507,6 @@ const Coaches: React.FC = () => {
         )}
       </div>
 
-      {/* Share Modal */}
       <ShareReportModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
