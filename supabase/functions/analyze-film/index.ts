@@ -116,65 +116,131 @@ serve(async (req: Request) => {
     const model = "gemini-2.5-flash";
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    // Call Gemini API with retry logic for 'High Demand' (503) errors
+    // Call Gemini API with direct visual mode first, falling back to text-only mode on failure
     let response;
     let result;
     const maxRetries = 3;
+    let fallbackToTextOnly = false;
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const parts: any[] = [];
-
-        // Check if there is a valid YouTube URL and pass it as file_data
-        if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
-          parts.push({
-            file_data: {
-              file_uri: videoUrl,
-              mime_type: "video/mp4"
+    // Level 1: Direct YouTube Visual Mode
+    if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
+      console.log("Attempting direct YouTube visual analysis...");
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const parts = [
+            {
+              file_data: {
+                file_uri: videoUrl,
+                mime_type: "video/mp4"
+              }
+            },
+            {
+              text: `${systemInstructions}\n\n${customPrompt || ''}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
+              
+              The JSON structure MUST be:
+              ${selectedSchema}`
             }
+          ];
+
+          response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                temperature: 0.0,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+              }
+            })
           });
-        }
 
-        // Add the system instructions and prompt text
-        parts.push({
-          text: `${systemInstructions}\n\n${customPrompt || ''}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
-          
-          The JSON structure MUST be:
-          ${selectedSchema}`
-        });
+          result = await response.json();
 
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: parts
-            }],
-            generationConfig: {
-              temperature: 0.0,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 8192,
-            }
-          })
-        });
-
-        result = await response.json();
-
-        if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
-          console.log(`Attempt ${attempt + 1} failed due to high demand. Retrying...`);
-          if (attempt < maxRetries - 1) {
-            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-            continue;
+          // Catch 403 (Embedding Disabled) or 400 (Cannot Fetch Content) and trigger Text-Only Fallback
+          if (
+            response.status === 403 || 
+            response.status === 400 || 
+            (result.error && (result.error.message?.includes('permission') || result.error.message?.includes('fetch') || result.error.message?.includes('fetch content')))
+          ) {
+            console.log("YouTube visual access restricted (403/400). Automatically falling back to Text-Only Grounded Mode...");
+            fallbackToTextOnly = true;
+            break;
           }
+
+          if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
+            console.log(`Visual Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+            if (attempt < maxRetries - 1) {
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+              continue;
+            }
+          }
+          break;
+        } catch (e) {
+          console.error(`Visual Attempt ${attempt + 1} error:`, e);
+          fallbackToTextOnly = true;
+          break;
         }
-        break;
-      } catch (e) {
-        console.error(`Attempt ${attempt + 1} network error:`, e);
-        if (attempt < maxRetries - 1) continue;
-        throw e;
+      }
+    } else {
+      fallbackToTextOnly = true;
+    }
+
+    // Level 2: Fallback to Text-Only Grounded Mode
+    if (fallbackToTextOnly) {
+      console.log("Running in Text-Only Grounded Mode...");
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const parts = [
+            {
+              text: `${systemInstructions}
+              
+              [NOTE: Direct visual access to the YouTube video was restricted by the creator's privacy/embedding settings. You must evaluate the game based strictly on the provided highlight timestamps, team roster, descriptors, and jersey colors as absolute ground-truth facts. Do not make up plays not supported by these inputs.]
+              
+              ${customPrompt || ''}
+              Film URL: ${videoUrl || 'No URL provided'}
+              
+              IMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
+              
+              The JSON structure MUST be:
+              ${selectedSchema}`
+            }
+          ];
+
+          response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                temperature: 0.0,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+              }
+            })
+          });
+
+          result = await response.json();
+
+          if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
+            console.log(`Text Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+            if (attempt < maxRetries - 1) {
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+              continue;
+            }
+          }
+          break;
+        } catch (e) {
+          console.error(`Text Attempt ${attempt + 1} error:`, e);
+          if (attempt < maxRetries - 1) continue;
+          throw e;
+        }
       }
     }
 
@@ -190,21 +256,24 @@ serve(async (req: Request) => {
 
     let jsonString = result.candidates[0].content.parts[0].text;
     
-    // Clean JSON string - remove markdown code blocks if present
-    jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Bulletproof JSON extractor: extracts only the first '{' to the last '}'
+    const firstBrace = jsonString.indexOf('{');
+    const lastBrace = jsonString.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+    }
     
     let analysisData;
     try {
       analysisData = JSON.parse(jsonString);
     } catch (e) {
       console.log('JSON parsing failed, falling back to raw text response.');
-      // Fallback: Create a structured object with the raw text so the frontend can still display it
       analysisData = {
         overallGrade: "N/A",
         letterGrade: "N/A",
         gradeLabel: "ANALYSIS COMPLETE",
-        overview: jsonString, // For players
-        assessment: jsonString, // For coaches
+        overview: jsonString,
+        assessment: jsonString,
         categories: [],
         plays: [],
         challenges: [],
