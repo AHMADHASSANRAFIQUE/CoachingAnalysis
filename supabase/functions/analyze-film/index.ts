@@ -17,7 +17,6 @@ serve(async (req: Request) => {
     const body = await req.json()
     const { 
       youtubeUrl, 
-      position, 
       teamName, 
       playerName, 
       age, 
@@ -28,7 +27,8 @@ serve(async (req: Request) => {
       opponent,
       jerseyColor,
       roster,
-      customPrompt 
+      customPrompt,
+      position,
     } = body
 
     const videoUrl = youtubeUrl || body.videoUrl
@@ -100,16 +100,20 @@ serve(async (req: Request) => {
       ? `You are Coach Legend. Analyze this full football game film for the head coach. Focus on team strategy, play calling, and 3 specific challenges/wins. Provide deep tactical insights. 
          IMPORTANT: NEVER reference NFL players or external teams like Duncanville, Desoto, or others. 
          The ONLY two teams in this game are: ${teamName} (Your Team, wearing ${jerseyColor || 'N/A'} jerseys) vs ${opponent || 'the Opponent'}.
-         CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
+         CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play by visually observing the film. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
          CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide 2-4 key play timestamps with specific descriptions of what happened. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
          CRITICAL - CONSISTENCY: For any given film URL, your evaluation MUST be highly consistent and reproducible. Base all feedback strictly on observable film evidence. Do not speculate or fabricate plays.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
          The game is: ${teamName} vs ${opponent || 'the Opponent'}.
-         CRITICAL INSTRUCTION FOR CONSISTENCY & PLAYER IDENTIFICATION: For any given film URL, your evaluation MUST be highly consistent and reproducible. Focus strictly on the player identified at the provided Highlight Timestamps (${startTime || 'Throughout film'}). Do NOT attribute or credit plays from other players at the same position. Use ONLY the provided descriptors, Jersey Color (${jerseyColor || 'N/A'}), and Roster context. NEVER mention teams like Duncanville or Desoto.`;
+         CRITICAL INSTRUCTION FOR CONSISTENCY & PLAYER IDENTIFICATION: For any given film URL, your evaluation MUST be highly consistent and reproducible. Focus strictly on the player identified at the provided Highlight Timestamps (${startTime || 'Throughout film'}). Use ONLY the provided descriptors (${descriptors || 'None'}), Jersey Color (${jerseyColor || 'N/A'}), and Roster context:
+         Roster:
+         ${roster || 'Not provided'}
+         
+         Visually track the player wearing Jersey #${jerseyNumber || 'N/A'} (Name: ${playerName || 'N/A'}) who matches these descriptors. Evaluate ONLY their play execution at the designated timestamps. Do NOT attribute or credit plays from other players. Use the video track to visually verify their execution.`;
 
-    // Using gemini-3-flash-preview as requested
-    const model = "gemini-3-flash-preview";
+    // Using gemini-2.5-flash for stable production visual analysis
+    const model = "gemini-2.5-flash";
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Call Gemini API with retry logic for 'High Demand' (503) errors
@@ -119,6 +123,26 @@ serve(async (req: Request) => {
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        const parts: any[] = [];
+
+        // Check if there is a valid YouTube URL and pass it as file_data
+        if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
+          parts.push({
+            file_data: {
+              file_uri: videoUrl,
+              mime_type: "video/mp4"
+            }
+          });
+        }
+
+        // Add the system instructions and prompt text
+        parts.push({
+          text: `${systemInstructions}\n\n${customPrompt || ''}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
+          
+          The JSON structure MUST be:
+          ${selectedSchema}`
+        });
+
         response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -126,12 +150,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             contents: [{
-              parts: [{
-                text: `${systemInstructions}\n\n${customPrompt || ''}\n\nFilm URL: ${videoUrl || 'No URL provided'}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
-                
-                The JSON structure MUST be:
-                ${selectedSchema}`
-              }]
+              parts: parts
             }],
             generationConfig: {
               temperature: 0.0,

@@ -15,6 +15,45 @@ interface PlayerTag {
 
 const POSITIONS = ['QB', 'WR', 'RB', 'TE', 'OL', 'DL', 'LB', 'DB', 'K/P'];
 
+const LOADING_STEPS = [
+  { label: 'Initializing secure connection...' },
+  { label: 'Fetching game film visual track...' },
+  { label: 'Syncing video frames with Gemini secure vault...' },
+  { label: 'Coach Legend is evaluating offensive/defensive lineups...' },
+  { label: 'Cross-referencing jersey colors and team roster...' },
+  { label: 'Compiling final scouting report and player grades...' }
+];
+
+const COACH_TIPS = [
+  { title: "RPO Mechanics", text: "In a standard RPO (Run-Pass Option), the quarterback decides whether to hand off or pass by reading the reaction of a single 'conflict' defender (usually the linebacker)." },
+  { title: "Defeating Cover 3", text: "Cover 3 places three deep defenders. The best way to beat this is targeting the deep seams or using 'four verticals' to stretch the single-high safety." },
+  { title: "Route Running Excellence", text: "A great receiver runs routes at the exact same speed as a vertical release. Break off your route at the last second to catch the defensive back off-balance." },
+  { title: "Pre-Snap QB Check", text: "Always identify the Mike (middle) linebacker before the snap. This sets the pass protection and identifies the strong side of the defense." },
+  { title: "Coach Legend's Rule #1", text: "\"You don't play to contain; you play to dominate. Execution beats strategy every single day of the week.\" — Nick Saban" },
+  { title: "Mental Toughness", text: "\"Today I will do what others won't, so tomorrow I can accomplish what others can't.\" — Jerry Rice" }
+];
+
+const TRIVIA_QUESTIONS = [
+  {
+    q: "What is the primary responsibility of a 'Will' (Weak-side) Linebacker in a 4-3 defense?",
+    options: ["A-Gap run containment", "Man-to-man on the slot WR", "Pursuing the ball carrier in space (C/D Gaps) and coverage"],
+    answer: 2,
+    explanation: "Correct! The Weak-side Linebacker (Will) must play fast in space, pursuing outside runs and dropping into space for pass coverage."
+  },
+  {
+    q: "If a defense plays '2-High' safeties and drop both into deep halves, what coverage is this?",
+    options: ["Cover 1", "Cover 2", "Cover 3"],
+    answer: 1,
+    explanation: "Correct! Cover 2 features two deep safeties covering deep halves, and five underneath defenders covering zones."
+  },
+  {
+    q: "What route concept features a deep post combined with an underneath dig route to stretch safeties?",
+    options: ["Mills Concept", "Smash Concept", "Flood Concept"],
+    answer: 0,
+    explanation: "Correct! The Mills concept uses a post and a dig to force the safety to choose between covering the dig or the deep post."
+  }
+];
+
 const getGradeColor = (grade: string, letter?: string) => {
   const normalizedGrade = grade?.toUpperCase() || '';
   const normalizedLetter = letter?.toUpperCase() || '';
@@ -42,6 +81,11 @@ const GradeBadge: React.FC<{ grade: string, letter?: string }> = ({ grade, lette
 const FilmAnalysis: React.FC = () => {
   const { user } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [activeStep, setActiveStep] = useState(0);
+  const [activeTipIdx, setActiveTipIdx] = useState(0);
+  const [triviaIdx, setTriviaIdx] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [quizChecked, setQuizChecked] = useState(false);
   const [position, setPosition] = useState('QB');
   const [teamName, setTeamNameState] = useState(getTeamName() || '');
   const [playerName, setPlayerName] = useState('');
@@ -86,6 +130,31 @@ const FilmAnalysis: React.FC = () => {
       if (data.results?.suggestedStats) setStats(data.results.suggestedStats);
     }
   }, []);
+
+  // Stepper and Tip rotation timers
+  React.useEffect(() => {
+    let stepTimer: any;
+    let tipTimer: any;
+
+    if (loading) {
+      // 1. Advance steps on a timed interval
+      stepTimer = setInterval(() => {
+        setActiveStep(prev => (prev < 5 ? prev + 1 : prev));
+      }, 7000);
+
+      // 2. Rotate coaching tips every 8 seconds
+      tipTimer = setInterval(() => {
+        setActiveTipIdx(prev => (prev + 1) % COACH_TIPS.length);
+      }, 8000);
+    } else {
+      setActiveStep(0);
+    }
+
+    return () => {
+      clearInterval(stepTimer);
+      clearInterval(tipTimer);
+    };
+  }, [loading]);
 
   // Save results to sessionStorage whenever they change
   React.useEffect(() => {
@@ -240,6 +309,9 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
     setLoading(true);
     setResults(null);
     setSaved(false);
+    setActiveStep(0);
+    setSelectedOption(null);
+    setQuizChecked(false);
 
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('analyze-film', {
@@ -312,7 +384,14 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
       letterGrade: results?.letterGrade || 'B',
       youtubeUrl,
       stats,
-      feedback: results,
+      feedback: {
+        ...results,
+        meta: {
+          roster,
+          jerseyColor,
+          playerTimestamps,
+        }
+      },
       teamName,
       playerName,
       age,
@@ -630,10 +709,133 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
             )}
 
             {loading && (
-              <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-16 flex flex-col items-center justify-center min-h-[500px]">
-                <div className="w-16 h-16 border-4 border-[#333] border-t-[#CDFD51] rounded-full animate-spin mb-6" />
-                <p className="text-white font-medium mb-2">Analyzing Film...</p>
-                <p className="text-[#666] text-sm">Coach Legend is reviewing every play</p>
+              <div className="bg-[#1a1a1a] rounded-2xl border border-[#333] p-8 md:p-12 space-y-8 min-h-[500px]">
+                {/* Header */}
+                <div className="text-center">
+                  <div className="w-16 h-16 border-4 border-[#333] border-t-[#CDFD51] rounded-full animate-spin mx-auto mb-4" />
+                  <h3 className="text-2xl font-black text-white uppercase tracking-wider">Scouting Film In Progress</h3>
+                  <p className="text-[#999] text-sm">Coach Legend is reviewing every play in high-definition</p>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-[#2a2a2a] h-2 rounded-full overflow-hidden border border-[#333]">
+                  <div 
+                    className="bg-[#CDFD51] h-full shadow-[0_0_12px_#CDFD51] transition-all duration-1000 ease-out"
+                    style={{ width: `${((activeStep + 1) / 6) * 100}%` }}
+                  />
+                </div>
+
+                {/* Stepper Grid & Trivia/Chalkboard side-by-side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Stepper Timeline */}
+                  <div className="space-y-4 bg-[#222] rounded-xl p-6 border border-[#333]">
+                    <h4 className="text-[#CDFD51] text-xs font-black uppercase tracking-widest mb-4">Processing Pipeline</h4>
+                    <div className="space-y-4">
+                      {LOADING_STEPS.map((step, idx) => (
+                        <div key={idx} className="flex items-center gap-3 transition-all duration-300">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            idx < activeStep 
+                              ? 'bg-[#CDFD51] text-[#1a1a1a]' 
+                              : idx === activeStep 
+                                ? 'border border-[#CDFD51] text-[#CDFD51] animate-pulse'
+                                : 'border border-[#444] text-[#666]'
+                          }`}>
+                            {idx < activeStep ? '✓' : idx + 1}
+                          </div>
+                          <span className={`text-xs font-medium ${
+                            idx === activeStep 
+                              ? 'text-white font-semibold' 
+                              : idx < activeStep 
+                                ? 'text-[#999]' 
+                                : 'text-[#555]'
+                          }`}>
+                            {step.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Engagement Panels */}
+                  <div className="space-y-6">
+                    {/* Coach's Chalkboard Tip Card */}
+                    <div className="bg-[#222] rounded-xl p-6 border border-[#333] relative overflow-hidden transition-all duration-500 hover:border-[#CDFD51]/50">
+                      <div className="absolute top-0 right-0 px-3 py-1 bg-[#CDFD51] text-[#1a1a1a] text-[10px] font-black uppercase tracking-wider rounded-bl-lg">
+                        Coach's Chalkboard
+                      </div>
+                      <h4 className="text-[#CDFD51] text-sm font-black uppercase tracking-wider mb-2">
+                        {COACH_TIPS[activeTipIdx].title}
+                      </h4>
+                      <p className="text-[#ccc] text-xs leading-relaxed italic">
+                        "{COACH_TIPS[activeTipIdx].text}"
+                      </p>
+                    </div>
+
+                    {/* Football IQ Quiz Card */}
+                    <div className="bg-[#222] rounded-xl p-6 border border-[#333] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#333] pb-2">
+                        <h4 className="text-white text-xs font-black uppercase tracking-widest">Football IQ Trivia</h4>
+                        <span className="text-[#666] text-[10px]">Quiz {triviaIdx + 1} of {TRIVIA_QUESTIONS.length}</span>
+                      </div>
+                      
+                      <p className="text-white text-xs font-medium leading-relaxed">
+                        {TRIVIA_QUESTIONS[triviaIdx].q}
+                      </p>
+
+                      <div className="space-y-2">
+                        {TRIVIA_QUESTIONS[triviaIdx].options.map((option, optIdx) => (
+                          <button
+                            key={optIdx}
+                            disabled={quizChecked}
+                            onClick={() => setSelectedOption(optIdx)}
+                            className={`w-full text-left p-3 rounded-lg text-xs font-medium border transition-all ${
+                              selectedOption === optIdx
+                                ? quizChecked
+                                  ? optIdx === TRIVIA_QUESTIONS[triviaIdx].answer
+                                    ? 'bg-[#CDFD51]/20 border-[#CDFD51] text-[#CDFD51]'
+                                    : 'bg-red-500/20 border-red-500 text-red-400'
+                                  : 'bg-[#CDFD51]/10 border-[#CDFD51] text-white'
+                                : 'bg-[#1a1a1a] border-[#333] text-[#999] hover:border-[#444] hover:text-white'
+                            }`}
+                          >
+                            {optIdx === 0 ? 'A) ' : optIdx === 1 ? 'B) ' : 'C) '} {option}
+                          </button>
+                        ))}
+                      </div>
+
+                      {selectedOption !== null && !quizChecked && (
+                        <button
+                          onClick={() => setQuizChecked(true)}
+                          className="w-full py-2 bg-[#CDFD51] text-[#1a1a1a] text-xs font-bold rounded-lg hover:bg-[#b8e845] transition-colors"
+                        >
+                          Submit Answer
+                        </button>
+                      )}
+
+                      {quizChecked && (
+                        <div className="space-y-3 pt-2">
+                          <div className={`p-3 rounded-lg text-xs font-medium ${
+                            selectedOption === TRIVIA_QUESTIONS[triviaIdx].answer
+                              ? 'bg-[#CDFD51]/10 text-[#CDFD51] border border-[#CDFD51]/20'
+                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          }`}>
+                            {TRIVIA_QUESTIONS[triviaIdx].explanation}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedOption(null);
+                              setQuizChecked(false);
+                              setTriviaIdx(prev => (prev + 1) % TRIVIA_QUESTIONS.length);
+                            }}
+                            className="w-full py-2 border border-[#CDFD51] text-[#CDFD51] text-xs font-bold rounded-lg hover:bg-[#CDFD51]/10 transition-colors"
+                          >
+                            Next Question
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

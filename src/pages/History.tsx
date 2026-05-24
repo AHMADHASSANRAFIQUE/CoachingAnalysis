@@ -48,6 +48,10 @@ const History: React.FC = () => {
         youtubeUrl: report.youtubeUrl,
         playerName: report.playerName,
         teamName: report.teamName,
+        jerseyColor: report.feedback?.meta?.jerseyColor || '',
+        roster: report.feedback?.meta?.roster || '',
+        playerTimestamps: report.feedback?.meta?.playerTimestamps || '',
+        age: report.age || '',
         results: report.feedback
       }));
       navigate('/film-analysis');
