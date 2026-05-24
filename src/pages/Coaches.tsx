@@ -48,6 +48,16 @@ const Coaches: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   // Player tags for position spotlight — keyed by "posIdx-playIdx"
   const [playerTags, setPlayerTags] = useState<Record<string, string>>({});
+  const [highlightNotes, setHighlightNotes] = useState(false);
+
+  const handleGoToNotes = () => {
+    const elem = document.getElementById('coach-notes-section');
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightNotes(true);
+      setTimeout(() => setHighlightNotes(false), 3000);
+    }
+  };
 
   useEffect(() => {
     const loadReports = async () => {
@@ -283,176 +293,228 @@ const Coaches: React.FC = () => {
 
         {/* Report Display */}
         {report && !report.error && (
-          <div className="space-y-6">
-
-            {/* Challenges */}
-            <div className="bg-[#2a2a2a] rounded-2xl border border-red-500/20 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <h2 className="text-xl font-bold text-white">3 BIGGEST CHALLENGES THIS GAME</h2>
-              </div>
-              <div className="space-y-4">
-                {(report.challenges || []).map((c: any, i: number) => (
-                  <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-red-500/50">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-white font-semibold">{c.title}</h3>
-                      <GradeBadge grade={c.grade || 'NEEDS CONSISTENCY'} />
-                    </div>
-                    <p className="text-[#ccc] text-sm mb-2">{c.description}</p>
-                    <p className="text-[#666] text-xs mb-2">{c.timestamps}</p>
-                    <div className="bg-red-500/5 rounded-lg p-3 mt-2">
-                      <p className="text-red-300 text-xs"><span className="font-semibold">Recommendation:</span> {c.recommendation}</p>
-                    </div>
+          <div className="space-y-6 animate-fade-in">
+            {report.accessRestricted ? (
+              <div className="bg-[#2a2a2a] rounded-2xl border border-yellow-500/30 p-8 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(234,179,8,0.05)]">
+                <div className="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-yellow-500 to-amber-600" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 animate-pulse">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Wins */}
-            <div className="bg-[#2a2a2a] rounded-2xl border border-[#CDFD51]/20 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <svg className="w-6 h-6 text-[#CDFD51]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-                <h2 className="text-xl font-bold text-white">3 THINGS THAT WENT BEST</h2>
-              </div>
-              <div className="space-y-4">
-                {(report.wins || []).map((w: any, i: number) => (
-                  <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-[#CDFD51]/50">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-white font-semibold">{w.title}</h3>
-                      <GradeBadge grade={w.grade || 'ELITE'} />
-                    </div>
-                    <p className="text-[#ccc] text-sm mb-2">{w.description}</p>
-                    <p className="text-[#666] text-xs mb-2">{w.timestamps}</p>
-                    <div className="bg-[#CDFD51]/5 rounded-lg p-3 mt-2">
-                      <p className="text-[#CDFD51]/80 text-xs"><span className="font-semibold">Build On:</span> {w.buildOn}</p>
-                    </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white uppercase tracking-wider">Visual Access Restricted</h3>
+                    <p className="text-yellow-400 text-xs font-semibold uppercase tracking-widest mt-0.5">Embedding & Subtitles Offline</p>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+                
+                <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                  {report.assessment}
+                </p>
 
-            {/* Overall Assessment */}
-            <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
-              <h2 className="text-xl font-bold text-white mb-4">OVERALL GAME ASSESSMENT</h2>
-              <div className="flex items-center gap-4 mb-6">
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(report.overallGrade, report.letterGrade)}`}>
-                  {report.letterGrade || 'B'}
-                </div>
-                <div>
-                  <GradeBadge grade={report.gradeLabel || 'DEVELOPING'} />
-                  <p className="text-[#999] text-xs mt-1">{teamName} vs {opponent}</p>
+                <div className="border-t border-[#333] pt-6 flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleGoToNotes}
+                    className="flex-1 py-3.5 px-6 bg-[#CDFD51] text-[#1a1a1a] font-bold text-sm rounded-lg hover:bg-[#b8e845] transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Describe Game / Write Coach Notes
+                  </button>
+                  <a
+                    href="https://studio.youtube.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3.5 border border-yellow-500/30 text-yellow-400 rounded-lg font-semibold text-sm hover:bg-yellow-500/10 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open YouTube Studio
+                  </a>
                 </div>
               </div>
-              <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap mb-4">{report.assessment}</p>
-              {report.matchupNotes && (
-                <div className="bg-[#1a1a1a] rounded-lg p-4 mt-4">
-                  <h4 className="text-white font-medium text-sm mb-2">Key Matchup Notes</h4>
-                  <p className="text-[#999] text-xs leading-relaxed">{report.matchupNotes}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Play Calling Analysis */}
-            {report.playCalling && (
-              <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
-                <h2 className="text-xl font-bold text-white mb-6">PLAY CALLING ANALYSIS</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-[#1a1a1a] rounded-xl p-5">
-                    <h3 className="text-[#CDFD51] font-bold text-sm mb-4 uppercase tracking-wider">Offensive Play Calling</h3>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'Run/Pass Ratio', value: report.playCalling.offense?.runPassRatio },
-                        { label: 'Down & Distance Tendencies', value: report.playCalling.offense?.tendencies },
-                        { label: 'Red Zone Grade', value: report.playCalling.offense?.redZoneGrade },
-                        { label: '3rd Down Grade', value: report.playCalling.offense?.thirdDownGrade },
-                        { label: 'Predictability Score', value: report.playCalling.offense?.predictabilityScore },
-                        { label: 'Wrong Calls', value: report.playCalling.offense?.wrongCalls },
-                        { label: 'Recommendations', value: report.playCalling.offense?.recommendations },
-                      ].map((item, i) => (
-                        <div key={i}>
-                          <div className="text-[#999] text-xs font-medium">{item.label}</div>
-                          <div className="text-white text-sm mt-0.5">{item.value || '--'}</div>
+            ) : (
+              <>
+                {/* Challenges */}
+                <div className="bg-[#2a2a2a] rounded-2xl border border-red-500/20 p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <h2 className="text-xl font-bold text-white">3 BIGGEST CHALLENGES THIS GAME</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {(report.challenges || []).map((c: any, i: number) => (
+                      <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-red-500/50">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-white font-semibold">{c.title}</h3>
+                          <GradeBadge grade={c.grade || 'NEEDS CONSISTENCY'} />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-[#1a1a1a] rounded-xl p-5">
-                    <h3 className="text-[#CDFD51] font-bold text-sm mb-4 uppercase tracking-wider">Defensive Play Calling</h3>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'Coverage Schemes', value: report.playCalling.defense?.coverageSchemes },
-                        { label: 'Blitz Rate & Effectiveness', value: report.playCalling.defense?.blitzRate },
-                        { label: 'Halftime Adjustments', value: report.playCalling.defense?.halftimeAdjustments },
-                        { label: 'Vulnerabilities Exposed', value: report.playCalling.defense?.vulnerabilities },
-                      ].map((item, i) => (
-                        <div key={i}>
-                          <div className="text-[#999] text-xs font-medium">{item.label}</div>
-                          <div className="text-white text-sm mt-0.5">{item.value || '--'}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Position Spotlight */}
-            {report.positionSpotlight && report.positionSpotlight.length > 0 && (
-              <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-bold text-white">POSITION SPOTLIGHT</h2>
-                </div>
-                <p className="text-[#666] text-xs mb-6">AI-observed position group performance. Assign players to timestamps manually using the tag field — these save with your report.</p>
-                <div className="space-y-6">
-                  {(report.positionSpotlight as any[]).map((pos: any, posIdx: number) => (
-                    <div key={posIdx} className="bg-[#1a1a1a] rounded-xl p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="px-3 py-1 bg-[#CDFD51]/20 text-[#CDFD51] rounded-full text-xs font-bold">{pos.position}</span>
-                          <GradeBadge grade={pos.grade || 'DEVELOPING'} />
+                        <p className="text-[#ccc] text-sm mb-2">{c.description}</p>
+                        <p className="text-[#666] text-xs mb-2">{c.timestamps}</p>
+                        <div className="bg-red-500/5 rounded-lg p-3 mt-2">
+                          <p className="text-red-300 text-xs"><span className="font-semibold">Recommendation:</span> {c.recommendation}</p>
                         </div>
                       </div>
-                      <p className="text-[#ccc] text-sm mb-4 leading-relaxed">{pos.summary}</p>
-                      {pos.keyPlays && pos.keyPlays.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="text-[#666] text-xs font-semibold uppercase tracking-wider mb-2">Key Plays</div>
-                          {pos.keyPlays.map((play: any, playIdx: number) => {
-                            const tagKey = `${posIdx}-${playIdx}`;
-                            return (
-                              <div key={playIdx} className="bg-[#2a2a2a] rounded-lg p-3 flex flex-col sm:flex-row sm:items-start gap-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[#CDFD51] text-xs font-bold font-mono">{play.timestamp}</span>
-                                  </div>
-                                  <p className="text-[#ccc] text-xs leading-relaxed">{play.description}</p>
-                                </div>
-                                <div className="sm:w-48 flex-shrink-0">
-                                  <label className="block text-[#666] text-[10px] mb-1">Assign Player</label>
-                                  <input
-                                    type="text"
-                                    value={playerTags[tagKey] ?? (play.playerTag || '')}
-                                    onChange={e => updatePlayerTag(posIdx, playIdx, e.target.value)}
-                                    placeholder="Player name / #"
-                                    className="w-full bg-[#1a1a1a] border border-[#444] rounded px-2 py-1.5 text-white text-xs placeholder-[#555] focus:border-[#CDFD51] focus:outline-none"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                {/* Wins */}
+                <div className="bg-[#2a2a2a] rounded-2xl border border-[#CDFD51]/20 p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <svg className="w-6 h-6 text-[#CDFD51]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                    <h2 className="text-xl font-bold text-white">3 THINGS THAT WENT BEST</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {(report.wins || []).map((w: any, i: number) => (
+                      <div key={i} className="bg-[#1a1a1a] rounded-xl p-5 border-l-4 border-[#CDFD51]/50">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-white font-semibold">{w.title}</h3>
+                          <GradeBadge grade={w.grade || 'ELITE'} />
+                        </div>
+                        <p className="text-[#ccc] text-sm mb-2">{w.description}</p>
+                        <p className="text-[#666] text-xs mb-2">{w.timestamps}</p>
+                        <div className="bg-[#CDFD51]/5 rounded-lg p-3 mt-2">
+                          <p className="text-[#CDFD51]/80 text-xs"><span className="font-semibold">Build On:</span> {w.buildOn}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Overall Assessment */}
+                <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
+                  <h2 className="text-xl font-bold text-white mb-4">OVERALL GAME ASSESSMENT</h2>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(report.overallGrade, report.letterGrade)}`}>
+                      {report.letterGrade || 'B'}
+                    </div>
+                    <div>
+                      <GradeBadge grade={report.gradeLabel || 'DEVELOPING'} />
+                      <p className="text-[#999] text-xs mt-1">{teamName} vs {opponent}</p>
+                    </div>
+                  </div>
+                  <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap mb-4">{report.assessment}</p>
+                  {report.matchupNotes && (
+                    <div className="bg-[#1a1a1a] rounded-lg p-4 mt-4">
+                      <h4 className="text-white font-medium text-sm mb-2">Key Matchup Notes</h4>
+                      <p className="text-[#999] text-xs leading-relaxed">{report.matchupNotes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Play Calling Analysis */}
+                {report.playCalling && (
+                  <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
+                    <h2 className="text-xl font-bold text-white mb-6">PLAY CALLING ANALYSIS</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-[#1a1a1a] rounded-xl p-5">
+                        <h3 className="text-[#CDFD51] font-bold text-sm mb-4 uppercase tracking-wider">Offensive Play Calling</h3>
+                        <div className="space-y-3">
+                          {[
+                            { label: 'Run/Pass Ratio', value: report.playCalling.offense?.runPassRatio },
+                            { label: 'Down & Distance Tendencies', value: report.playCalling.offense?.tendencies },
+                            { label: 'Red Zone Grade', value: report.playCalling.offense?.redZoneGrade },
+                            { label: '3rd Down Grade', value: report.playCalling.offense?.thirdDownGrade },
+                            { label: 'Predictability Score', value: report.playCalling.offense?.predictabilityScore },
+                            { label: 'Wrong Calls', value: report.playCalling.offense?.wrongCalls },
+                            { label: 'Recommendations', value: report.playCalling.offense?.recommendations },
+                          ].map((item, i) => (
+                            <div key={i}>
+                              <div className="text-[#999] text-xs font-medium">{item.label}</div>
+                              <div className="text-white text-sm mt-0.5">{item.value || '--'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-[#1a1a1a] rounded-xl p-5">
+                        <h3 className="text-[#CDFD51] font-bold text-sm mb-4 uppercase tracking-wider">Defensive Play Calling</h3>
+                        <div className="space-y-3">
+                          {[
+                            { label: 'Coverage Schemes', value: report.playCalling.defense?.coverageSchemes },
+                            { label: 'Blitz Rate & Effectiveness', value: report.playCalling.defense?.blitzRate },
+                            { label: 'Halftime Adjustments', value: report.playCalling.defense?.halftimeAdjustments },
+                            { label: 'Vulnerabilities Exposed', value: report.playCalling.defense?.vulnerabilities },
+                          ].map((item, i) => (
+                            <div key={i}>
+                              <div className="text-[#999] text-xs font-medium">{item.label}</div>
+                              <div className="text-white text-sm mt-0.5">{item.value || '--'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Position Spotlight */}
+                {report.positionSpotlight && report.positionSpotlight.length > 0 && (
+                  <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-xl font-bold text-white">POSITION SPOTLIGHT</h2>
+                    </div>
+                    <p className="text-[#666] text-xs mb-6">AI-observed position group performance. Assign players to timestamps manually using the tag field — these save with your report.</p>
+                    <div className="space-y-6">
+                      {(report.positionSpotlight as any[]).map((pos: any, posIdx: number) => (
+                        <div key={posIdx} className="bg-[#1a1a1a] rounded-xl p-5">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="px-3 py-1 bg-[#CDFD51]/20 text-[#CDFD51] rounded-full text-xs font-bold">{pos.position}</span>
+                              <GradeBadge grade={pos.grade || 'DEVELOPING'} />
+                            </div>
+                          </div>
+                          <p className="text-[#ccc] text-sm mb-4 leading-relaxed">{pos.summary}</p>
+                          {pos.keyPlays && pos.keyPlays.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="text-[#666] text-xs font-semibold uppercase tracking-wider mb-2">Key Plays</div>
+                              {pos.keyPlays.map((play: any, playIdx: number) => {
+                                const tagKey = `${posIdx}-${playIdx}`;
+                                return (
+                                  <div key={playIdx} className="bg-[#2a2a2a] rounded-lg p-3 flex flex-col sm:flex-row sm:items-start gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[#CDFD51] text-xs font-bold font-mono">{play.timestamp}</span>
+                                      </div>
+                                      <p className="text-[#ccc] text-xs leading-relaxed">{play.description}</p>
+                                    </div>
+                                    <div className="sm:w-48 flex-shrink-0">
+                                      <label className="block text-[#666] text-[10px] mb-1">Assign Player</label>
+                                      <input
+                                        type="text"
+                                        value={playerTags[tagKey] ?? (play.playerTag || '')}
+                                        onChange={e => updatePlayerTag(posIdx, playIdx, e.target.value)}
+                                        placeholder="Player name / #"
+                                        className="w-full bg-[#1a1a1a] border border-[#444] rounded px-2 py-1.5 text-white text-xs placeholder-[#555] focus:border-[#CDFD51] focus:outline-none"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Coach Notes */}
-            <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
+            <div 
+              id="coach-notes-section" 
+              className={`bg-[#2a2a2a] rounded-2xl border p-6 transition-all duration-500 ${
+                highlightNotes 
+                  ? 'border-transparent ring-2 ring-[#CDFD51] shadow-[0_0_20px_rgba(205,253,81,0.6)] bg-[#CDFD51]/5' 
+                  : 'border-[#333]'
+              }`}
+            >
               <h2 className="text-lg font-bold text-white mb-4">Coach Notes</h2>
               <textarea
                 value={coachNotes}

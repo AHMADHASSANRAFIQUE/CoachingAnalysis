@@ -8,6 +8,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const extractVideoId = (url: string): string | null => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const fetchYouTubeTranscript = async (videoUrl: string): Promise<string | null> => {
+  const videoId = extractVideoId(videoUrl);
+  if (!videoId) return null;
+
+  try {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+    
+    const match = html.match(/"captionTracks":\s*(\[.*?\])/);
+    if (!match) return null;
+    
+    const captionTracks = JSON.parse(match[1]);
+    if (!captionTracks || captionTracks.length === 0) return null;
+    
+    const track = captionTracks.find((t: any) => t.languageCode === 'en') || captionTracks[0];
+    if (!track || !track.baseUrl) return null;
+    
+    const transcriptResponse = await fetch(`${track.baseUrl}&fmt=json3`);
+    if (!transcriptResponse.ok) return null;
+    
+    const transcriptJson = await transcriptResponse.json();
+    if (!transcriptJson.events) return null;
+    
+    let transcriptText = "";
+    for (const event of transcriptJson.events) {
+      if (!event.segs) continue;
+      const text = event.segs.map((s: any) => s.utf8).join("").trim();
+      if (!text) continue;
+      
+      const startMs = event.tStartMs || 0;
+      const minutes = Math.floor(startMs / 60000);
+      const seconds = Math.floor((startMs % 60000) / 1000);
+      const timestamp = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      transcriptText += `[${timestamp}] ${text}\n`;
+    }
+    
+    return transcriptText;
+  } catch (e) {
+    console.error("Failed to fetch YouTube transcript:", e);
+    return null;
+  }
+};
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -190,9 +245,100 @@ serve(async (req: Request) => {
       fallbackToTextOnly = true;
     }
 
-    // Level 2: Fallback to Text-Only Grounded Mode
     if (fallbackToTextOnly) {
       console.log("Running in Text-Only Grounded Mode...");
+
+      // Try fetching transcript/subtitles as automatic fallback (Level 2)
+      let transcriptText = null;
+      if (videoUrl) {
+        console.log("Attempting to fetch automatic subtitles/transcript from YouTube...");
+        transcriptText = await fetchYouTubeTranscript(videoUrl);
+        if (transcriptText) {
+          console.log("Subtitles/transcript fetched successfully! Grounding analysis in subtitles...");
+        } else {
+          console.log("No subtitles/transcript found for this video.");
+        }
+      }
+
+      // Check if we should activate Level 3 Fallback (restricted access + no subtitles + no manual details)
+      const hasManualCoachDetails = isCoachAnalysis && (coachNotes && coachNotes.trim().length >= 10);
+      const hasManualPlayerDetails = !isCoachAnalysis && (
+        (startTime && startTime.trim().length > 0) || 
+        (descriptors && descriptors.trim().length > 0)
+      );
+
+      const hasGroundedData = transcriptText || hasManualCoachDetails || hasManualPlayerDetails;
+
+      if (!hasGroundedData) {
+        console.log("Visual access restricted, no subtitles found, and no manual details provided. Returning accessRestricted payload...");
+        const fallbackReport = {
+          accessRestricted: true,
+          challenges: [
+            {
+              title: "Film Access Restricted",
+              grade: "N/A",
+              description: "Direct visual access to this YouTube video is restricted by the creator's privacy settings (Allow Embedding is disabled), and no audio transcript or player tags were found.",
+              timestamps: "00:00",
+              recommendation: "To enable automatic visual analysis, please go to your YouTube Video Advanced Settings and check the 'Allow Embedding' box. Alternatively, describe what happened on your plays using our quick Player Tagging form below!"
+            }
+          ],
+          wins: [
+            {
+              title: "Film Access Restricted",
+              grade: "N/A",
+              description: "Direct visual access to this YouTube video is restricted by the creator's privacy settings (Allow Embedding is disabled), and no audio transcript or player tags were found.",
+              timestamps: "00:00",
+              buildOn: "To enable automatic visual analysis, please go to your YouTube Video Advanced Settings and check the 'Allow Embedding' box."
+            }
+          ],
+          overallGrade: "N/A",
+          gradeLabel: "RESTRICTED",
+          assessment: `Coach, I attempted to analyze the film for this game (${teamName} vs ${opponent || 'the Opponent'}). However, direct visual access to the YouTube video was restricted because 'Allow Embedding' is turned off in the video settings, and there is no audio transcript available. Since no custom Coach's Notes or Player Tags were provided to ground the analysis, I cannot generate a detailed tactical report.
+
+To fix this:
+1. Go to your YouTube Studio -> Content -> Click on your video -> Details.
+2. Scroll down and click 'SHOW MORE'.
+3. Under 'License and distribution', ensure 'Allow embedding' is checked/enabled.
+4. Click 'SAVE' at the top right.
+5. Return here and run the analysis again!
+
+Alternatively, you can write your own observations or timestamps in the Coach Notes or add Player Tags below, and I will structure them into a professional scouting report.`,
+          matchupNotes: "Direct visual access restricted. Please enable embedding on YouTube.",
+          playCalling: {
+            offense: {
+              runPassRatio: "N/A",
+              tendencies: "Visual access restricted.",
+              redZoneGrade: "N/A",
+              thirdDownGrade: "N/A",
+              predictabilityScore: "N/A",
+              wrongCalls: "N/A",
+              recommendations: "Enable embedding to analyze offensive play calling."
+            },
+            defense: {
+              coverageSchemes: "Visual access restricted.",
+              blitzRate: "N/A",
+              halftimeAdjustments: "N/A",
+              vulnerabilities: "Enable embedding to analyze defensive play calling."
+            }
+          },
+          positionSpotlight: [],
+          overview: `[VISUAL ACCESS RESTRICTED] Direct visual access to the YouTube film is restricted because 'Allow Embedding' is disabled, and no subtitles are available. Please enable embedding or use the tagging form below to describe what happened.`,
+          categories: [],
+          plays: [],
+          areasForGrowth: []
+        };
+
+        return new Response(
+          JSON.stringify({
+            data: fallbackReport,
+            analysis: fallbackReport.assessment,
+            overallGrade: fallbackReport.overallGrade,
+            letterGrade: fallbackReport.gradeLabel
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
           const parts = [
@@ -200,12 +346,16 @@ serve(async (req: Request) => {
               text: `${systemInstructions}
               
               [NOTE: Direct visual access to the YouTube video was restricted by the creator's privacy/embedding settings. 
-              ${isCoachAnalysis 
-                ? `You must evaluate the game and populate all plays, wins, challenges, and position spotlight timestamps based strictly on the coach's custom notes:
-                   Coach Notes:
-                   "${coachNotes || 'No custom notes provided'}"
-                   Extract and use the exact timestamps and play descriptions mentioned in these coach notes (e.g. 05:10, 12:45). If no specific timestamps are found in the coach notes, use standard estimations, but do not invent unrelated plays. If coachNotes is empty, state clearly in the assessment that visual access is restricted and no coach notes were provided.`
-                : `You must evaluate the game based strictly on the provided highlight timestamps (${startTime || 'None'}), team roster, descriptors, and jersey colors as absolute ground-truth facts.`
+              ${transcriptText 
+                ? `However, we have fetched the video's automatic audio transcript/subtitles below. You MUST base your analysis, plays, challenges, wins, and spotlights strictly on the events, timestamps, and commentary found in this transcript:
+                   Audio Transcript:
+                   ${transcriptText}`
+                : isCoachAnalysis 
+                  ? `You must evaluate the game and populate all plays, wins, challenges, and position spotlight timestamps based strictly on the coach's custom notes:
+                     Coach Notes:
+                     "${coachNotes || 'No custom notes provided'}"
+                     Extract and use the exact timestamps and play descriptions mentioned in these coach notes (e.g. 05:10, 12:45).`
+                  : `You must evaluate the game based strictly on the provided highlight timestamps (${startTime || 'None'}), team roster, descriptors, and jersey colors as absolute ground-truth facts.`
               }
               Do not make up plays not supported by these inputs.]
               
@@ -263,47 +413,95 @@ serve(async (req: Request) => {
       throw new Error('AI failed to generate a response. Please try again.');
     }
 
-    let jsonString = result.candidates[0].content.parts[0].text;
+    const rawText = result.candidates[0].content.parts[0].text;
     
-    // Bulletproof JSON extraction: extract from the first '{' to the end of the text
-    const firstBrace = jsonString.indexOf('{');
-    if (firstBrace !== -1) {
-      jsonString = jsonString.substring(firstBrace);
-    }
-    
-    // Helper function to repair truncated or incomplete JSON
-    const repairTruncatedJson = (str: string): string => {
-      let cleanStr = str.trim();
+    const cleanAndRepairJson = (str: string): string => {
+      let json = str.trim();
       
-      // Close unclosed string literal if truncated inside a string
+      json = json.replace(/^```json\s*/i, '');
+      json = json.replace(/```$/, '');
+      json = json.trim();
+      
+      const firstBrace = json.indexOf('{');
+      const lastBrace = json.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        json = json.substring(firstBrace, lastBrace + 1);
+      } else if (firstBrace !== -1) {
+        json = json.substring(firstBrace);
+      }
+      
+      let cleanStr = "";
       let inString = false;
-      for (let i = 0; i < cleanStr.length; i++) {
-        if (cleanStr[i] === '"' && (i === 0 || cleanStr[i-1] !== '\\')) {
+      let escaped = false;
+      
+      for (let i = 0; i < json.length; i++) {
+        const char = json[i];
+        
+        if (char === '\\' && inString) {
+          escaped = !escaped;
+          cleanStr += char;
+          continue;
+        }
+        
+        if (char === '"' && !escaped) {
           inString = !inString;
         }
+        
+        escaped = false;
+        
+        if (inString) {
+          if (char === '\n') {
+            cleanStr += '\\n';
+          } else if (char === '\r') {
+            cleanStr += '\\r';
+          } else if (char === '\t') {
+            cleanStr += '\\t';
+          } else if (char.charCodeAt(0) < 32) {
+            cleanStr += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+          } else {
+            cleanStr += char;
+          }
+        } else {
+          cleanStr += char;
+        }
       }
+      
+      cleanStr = cleanStr.replace(/,\s*([\]}])/g, '$1');
+      
       if (inString) {
         cleanStr += '"';
       }
       
-      // Track open brackets and braces
       const stack: string[] = [];
       inString = false;
+      escaped = false;
+      
       for (let i = 0; i < cleanStr.length; i++) {
         const char = cleanStr[i];
-        if (char === '"' && (i === 0 || cleanStr[i-1] !== '\\')) {
+        if (char === '\\' && inString) {
+          escaped = !escaped;
+          continue;
+        }
+        if (char === '"' && !escaped) {
           inString = !inString;
         }
+        escaped = false;
+        
         if (!inString) {
           if (char === '{' || char === '[') {
             stack.push(char);
-          } else if (char === '}' || char === ']') {
-            stack.pop();
+          } else if (char === '}') {
+            if (stack[stack.length - 1] === '{') {
+              stack.pop();
+            }
+          } else if (char === ']') {
+            if (stack[stack.length - 1] === '[') {
+              stack.pop();
+            }
           }
         }
       }
       
-      // Append closing brackets in reverse order to repair syntax
       while (stack.length > 0) {
         const lastOpened = stack.pop();
         if (lastOpened === '{') {
@@ -318,16 +516,20 @@ serve(async (req: Request) => {
 
     let analysisData;
     try {
-      const repairedJson = repairTruncatedJson(jsonString);
+      const repairedJson = cleanAndRepairJson(rawText);
       analysisData = JSON.parse(repairedJson);
+      
+      if (!isCoachAnalysis && fallbackToTextOnly && analysisData.overview) {
+        analysisData.overview = `[DISCLAIMER: Direct visual access to the game film was restricted. This scouting report was compiled based strictly on your custom highlight timestamps, roster details, and player descriptions.]\n\n${analysisData.overview}`;
+      }
     } catch (e) {
       console.log('JSON parsing and repair failed, falling back to raw text response.', e);
       analysisData = {
         overallGrade: "N/A",
         letterGrade: "N/A",
         gradeLabel: "ANALYSIS COMPLETE",
-        overview: jsonString,
-        assessment: jsonString,
+        overview: rawText,
+        assessment: rawText,
         categories: [],
         plays: [],
         challenges: [],

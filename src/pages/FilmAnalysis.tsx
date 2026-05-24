@@ -11,6 +11,7 @@ interface PlayerTag {
   startTime: string;
   descriptors: string;
   label: string;
+  actionDescription?: string;
 }
 
 const POSITIONS = ['QB', 'WR', 'RB', 'TE', 'OL', 'DL', 'LB', 'DB', 'K/P'];
@@ -93,6 +94,8 @@ const FilmAnalysis: React.FC = () => {
   const [jerseyNumber, setJerseyNumber] = useState('');
   const [startTime, setStartTime] = useState('');
   const [descriptors, setDescriptors] = useState('');
+  const [actionDescription, setActionDescription] = useState('');
+  const [highlightTagging, setHighlightTagging] = useState(false);
   const [jerseyColor, setJerseyColor] = useState('');
   const [roster, setRoster] = useState('');
   const [playerTimestamps, setPlayerTimestamps] = useState('');
@@ -106,6 +109,15 @@ const FilmAnalysis: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPricingAd, setShowPricingAd] = useState(false);
   const [analysisCount, setAnalysisCount] = useState(0);
+
+  const handleGoToTagging = () => {
+    const elem = document.getElementById('player-tagging-section');
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightTagging(true);
+      setTimeout(() => setHighlightTagging(false), 3000);
+    }
+  };
 
   // Check monthly limit and Restore Session on mount
   React.useEffect(() => {
@@ -274,11 +286,13 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
       startTime,
       descriptors,
       label: tagLabel || `#${jerseyNumber}`,
+      actionDescription: actionDescription,
     }]);
     setJerseyNumber('');
     setStartTime('');
     setDescriptors('');
     setTagLabel('');
+    setActionDescription('');
   };
 
   const removeTag = (id: string) => {
@@ -323,7 +337,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           age,
           jerseyNumber: playerTags[0]?.jersey || jerseyNumber,
           startTime: effectiveTimestamps,
-          descriptors: playerTags.map(t => t.descriptors).join(', ') || descriptors,
+          descriptors: playerTags.map(t => `${t.descriptors}${t.actionDescription ? ` (Action/What Happened: ${t.actionDescription})` : ''}`).join(', ') || descriptors,
           analysisType: 'player',
           jerseyColor,
           roster,
@@ -336,7 +350,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
             timestamps: effectiveTimestamps,
             ageLevel: age,
             position,
-            description: playerTags.map(t => t.descriptors).join(', ') || descriptors
+            description: playerTags.map(t => `${t.descriptors}${t.actionDescription ? ` (Action/What Happened: ${t.actionDescription})` : ''}`).join(', ') || descriptors
           }, qbStats)
         },
       });
@@ -604,8 +618,15 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
             </div>
 
             {/* Player Identification */}
-            <div className="border-t border-[#333] pt-6">
-              <h3 className="text-white font-semibold text-sm mb-4">Player Identification</h3>
+            <div 
+              id="player-tagging-section" 
+              className={`border border-[#333] rounded-xl p-5 space-y-4 transition-all duration-500 ${
+                highlightTagging 
+                  ? 'ring-2 ring-[#CDFD51] shadow-[0_0_20px_rgba(205,253,81,0.6)] bg-[#CDFD51]/5 border-transparent' 
+                  : 'bg-[#2a2a2a]/20'
+              }`}
+            >
+              <h3 className="text-white font-bold text-sm">Player Identification & Tagging</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -615,7 +636,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                       value={jerseyNumber}
                       onChange={(e) => setJerseyNumber(e.target.value)}
                       placeholder="#"
-                      className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                      className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                     />
                   </div>
                   <div>
@@ -625,7 +646,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
                       placeholder="00:00"
-                      className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                      className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -636,7 +657,19 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                     value={descriptors}
                     onChange={(e) => setDescriptors(e.target.value)}
                     placeholder="e.g. pink wristband, yellow cleats, #32"
-                    className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                    className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#999] text-xs mb-1 flex items-center gap-1.5">
+                    Play Action / What Happened <span className="text-[#CDFD51] text-[10px] font-bold uppercase tracking-wider bg-[#CDFD51]/10 px-1.5 py-0.5 rounded">Highly Recommended</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={actionDescription}
+                    onChange={(e) => setActionDescription(e.target.value)}
+                    placeholder="e.g. completed 15yd TD pass, made tackle for loss"
+                    className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -646,7 +679,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                     value={tagLabel}
                     onChange={(e) => setTagLabel(e.target.value)}
                     placeholder="Label for this tag"
-                    className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
+                    className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                   />
                 </div>
                 <button
@@ -656,14 +689,16 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                   Add Player Tag
                 </button>
               </div>
-
+ 
               {/* Tags Display */}
               {playerTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4">
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[#333]">
                   {playerTags.map(tag => (
-                    <div key={tag.id} className="inline-flex items-center gap-2 bg-[#CDFD51]/10 border border-[#CDFD51]/30 rounded-full px-3 py-1.5">
-                      <span className="text-[#CDFD51] text-xs font-medium">#{tag.jersey} {tag.label}</span>
-                      <button onClick={() => removeTag(tag.id)} className="text-[#CDFD51]/60 hover:text-[#CDFD51]">
+                    <div key={tag.id} className="inline-flex items-center gap-2 bg-[#CDFD51]/10 border border-[#CDFD51]/30 rounded-full px-3 py-1.5 max-w-full">
+                      <span className="text-[#CDFD51] text-xs font-medium truncate">
+                        #{tag.jersey} {tag.label} {tag.actionDescription && `(${tag.actionDescription})`}
+                      </span>
+                      <button onClick={() => removeTag(tag.id)} className="text-[#CDFD51]/60 hover:text-[#CDFD51] flex-shrink-0">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -841,167 +876,213 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
 
             {results && !results.error && (
               <div className="space-y-6">
-                {/* Player Header */}
-                <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
-                  <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">{playerName || 'Player'}</h2>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="px-3 py-1 bg-[#CDFD51]/20 text-[#CDFD51] rounded-full text-xs font-bold">{position}</span>
-                        <span className="text-[#999] text-sm">{teamName}</span>
-                        <span className="text-[#666] text-sm">{age}</span>
+                {results.accessRestricted ? (
+                  <div className="bg-[#2a2a2a] rounded-2xl border border-yellow-500/30 p-8 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(234,179,8,0.05)] animate-fade-in">
+                    <div className="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-yellow-500 to-amber-600" />
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 animate-pulse">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-white uppercase tracking-wider">Visual Access Restricted</h3>
+                        <p className="text-yellow-400 text-xs font-semibold uppercase tracking-widest mt-0.5">Embedding & Subtitles Offline</p>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(results.overallGrade, results.letterGrade)}`}>
-                        {results.letterGrade || 'B'}
-                      </div>
-                      <div className="mt-1">
-                        <GradeBadge grade={results.overallGrade || 'DEVELOPING'} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    
+                    <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                      {results.assessment}
+                    </p>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {getPositionStats().map(s => (
-                    <div key={s.key} className="bg-[#2a2a2a] rounded-xl border border-[#333] p-4">
-                      <div className="text-[#999] text-xs mb-1">{s.label}</div>
-                      <input
-                        type="number"
-                        value={stats[s.key] || 0}
-                        onChange={(e) => setStats({ ...stats, [s.key]: parseFloat(e.target.value) || 0 })}
-                        className="w-full bg-transparent text-white text-2xl font-bold focus:outline-none"
-                      />
-                    </div>
-                  ))}
-                  {completionPct !== null && (
-                    <div className="bg-[#2a2a2a] rounded-xl border border-[#CDFD51]/30 p-4">
-                      <div className="text-[#CDFD51] text-xs mb-1">Completion %</div>
-                      <div className="text-[#CDFD51] text-2xl font-bold">{completionPct}%</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* AI Feedback Tabs */}
-                <div className="bg-[#2a2a2a] rounded-2xl border border-[#333]">
-                  <div className="flex border-b border-[#333]">
-                    {['overview', 'play-by-play', 'growth'].map(tab => (
+                    <div className="border-t border-[#333] pt-6 flex flex-col sm:flex-row gap-3">
                       <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                          activeTab === tab
-                            ? 'text-[#CDFD51] border-b-2 border-[#CDFD51]'
-                            : 'text-[#999] hover:text-white'
-                        }`}
+                        onClick={handleGoToTagging}
+                        className="flex-1 py-3.5 px-6 bg-[#CDFD51] text-[#1a1a1a] font-bold text-sm rounded-lg hover:bg-[#b8e845] transition-all flex items-center justify-center gap-2"
                       >
-                        {tab === 'overview' ? 'Overview' : tab === 'play-by-play' ? 'Play-by-Play' : 'Areas for Growth'}
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Describe My Plays / Tag Player
                       </button>
-                    ))}
+                      <a
+                        href="https://studio.youtube.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3.5 border border-yellow-500/30 text-yellow-400 rounded-lg font-semibold text-sm hover:bg-yellow-500/10 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Open YouTube Studio
+                      </a>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {/* Player Header */}
+                    <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
+                      <div className="flex items-start justify-between flex-wrap gap-4">
+                        <div>
+                          <h2 className="text-2xl font-bold text-white">{playerName || 'Player'}</h2>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="px-3 py-1 bg-[#CDFD51]/20 text-[#CDFD51] rounded-full text-xs font-bold">{position}</span>
+                            <span className="text-[#999] text-sm">{teamName}</span>
+                            <span className="text-[#666] text-sm">{age}</span>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black ${getGradeColor(results.overallGrade, results.letterGrade)}`}>
+                            {results.letterGrade || 'B'}
+                          </div>
+                          <div className="mt-1">
+                            <GradeBadge grade={results.overallGrade || 'DEVELOPING'} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="p-6">
-                    {activeTab === 'overview' && (
-                      <div className="space-y-4">
-                        <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap">{results.overview}</p>
-                        {results.categories && (
-                          <div className="space-y-3 mt-6">
-                            {results.categories.map((cat: any, i: number) => (
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {getPositionStats().map(s => (
+                        <div key={s.key} className="bg-[#2a2a2a] rounded-xl border border-[#333] p-4">
+                          <div className="text-[#999] text-xs mb-1">{s.label}</div>
+                          <input
+                            type="number"
+                            value={stats[s.key] || 0}
+                            onChange={(e) => setStats({ ...stats, [s.key]: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-transparent text-white text-2xl font-bold focus:outline-none"
+                          />
+                        </div>
+                      ))}
+                      {completionPct !== null && (
+                        <div className="bg-[#2a2a2a] rounded-xl border border-[#CDFD51]/30 p-4">
+                          <div className="text-[#CDFD51] text-xs mb-1">Completion %</div>
+                          <div className="text-[#CDFD51] text-2xl font-bold">{completionPct}%</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI Feedback Tabs */}
+                    <div className="bg-[#2a2a2a] rounded-2xl border border-[#333]">
+                      <div className="flex border-b border-[#333]">
+                        {['overview', 'play-by-play', 'growth'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                              activeTab === tab
+                                ? 'text-[#CDFD51] border-b-2 border-[#CDFD51]'
+                                : 'text-[#999] hover:text-white'
+                            }`}
+                          >
+                            {tab === 'overview' ? 'Overview' : tab === 'play-by-play' ? 'Play-by-Play' : 'Areas for Growth'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="p-6">
+                        {activeTab === 'overview' && (
+                          <div className="space-y-4">
+                            <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap">{results.overview}</p>
+                            {results.categories && (
+                              <div className="space-y-3 mt-6">
+                                {results.categories.map((cat: any, i: number) => (
+                                  <div key={i} className="bg-[#1a1a1a] rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-white font-medium text-sm">{cat.name}</span>
+                                      <GradeBadge grade={cat.grade} />
+                                    </div>
+                                    <p className="text-[#999] text-xs leading-relaxed">{cat.feedback}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeTab === 'play-by-play' && results.plays && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-[#666] text-xs uppercase tracking-wider">
+                                  <th className="text-left py-2 pr-4">Play</th>
+                                  <th className="text-left py-2 pr-4">Time</th>
+                                  <th className="text-left py-2 pr-4">Action</th>
+                                  <th className="text-left py-2 pr-4">Grade</th>
+                                  <th className="text-left py-2">Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {results.plays.map((play: any, i: number) => (
+                                  <tr key={i} className="border-t border-[#333]">
+                                    <td className="py-3 pr-4 text-white font-medium">{play.play}</td>
+                                    <td className="py-3 pr-4 text-[#999]">{play.time}</td>
+                                    <td className="py-3 pr-4 text-[#ccc] max-w-[200px]">{play.action}</td>
+                                    <td className="py-3 pr-4"><GradeBadge grade={play.grade} /></td>
+                                    <td className="py-3 text-[#999] text-xs max-w-[200px]">{play.notes}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {activeTab === 'growth' && results.areasForGrowth && (
+                          <div className="space-y-4">
+                            {results.areasForGrowth.map((area: any, i: number) => (
                               <div key={i} className="bg-[#1a1a1a] rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-white font-medium text-sm">{cat.name}</span>
-                                  <GradeBadge grade={cat.grade} />
+                                  <span className="text-white font-medium text-sm">{area.area}</span>
+                                  <GradeBadge grade={area.currentLevel} />
                                 </div>
-                                <p className="text-[#999] text-xs leading-relaxed">{cat.feedback}</p>
+                                <p className="text-[#999] text-xs leading-relaxed">{area.recommendation}</p>
                               </div>
                             ))}
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
 
-                    {activeTab === 'play-by-play' && results.plays && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-[#666] text-xs uppercase tracking-wider">
-                              <th className="text-left py-2 pr-4">Play</th>
-                              <th className="text-left py-2 pr-4">Time</th>
-                              <th className="text-left py-2 pr-4">Action</th>
-                              <th className="text-left py-2 pr-4">Grade</th>
-                              <th className="text-left py-2">Notes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {results.plays.map((play: any, i: number) => (
-                              <tr key={i} className="border-t border-[#333]">
-                                <td className="py-3 pr-4 text-white font-medium">{play.play}</td>
-                                <td className="py-3 pr-4 text-[#999]">{play.time}</td>
-                                <td className="py-3 pr-4 text-[#ccc] max-w-[200px]">{play.action}</td>
-                                <td className="py-3 pr-4"><GradeBadge grade={play.grade} /></td>
-                                <td className="py-3 text-[#999] text-xs max-w-[200px]">{play.notes}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {activeTab === 'growth' && results.areasForGrowth && (
-                      <div className="space-y-4">
-                        {results.areasForGrowth.map((area: any, i: number) => (
-                          <div key={i} className="bg-[#1a1a1a] rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-white font-medium text-sm">{area.area}</span>
-                              <GradeBadge grade={area.currentLevel} />
-                            </div>
-                            <p className="text-[#999] text-xs leading-relaxed">{area.recommendation}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 flex-wrap">
-                  <button
-                    onClick={saveToProfile}
-                    disabled={saved}
-                    className={`flex-1 min-w-[140px] py-3 rounded-lg font-semibold text-sm transition-all ${
-                      saved
-                        ? 'bg-[#CDFD51]/20 text-[#CDFD51] border border-[#CDFD51]/30'
-                        : 'bg-[#CDFD51] text-[#1a1a1a] hover:bg-[#b8e845]'
-                    }`}
-                  >
-                    {saved ? 'Saved to Profile' : 'Save to Player Profile'}
-                  </button>
-                  <button
-                    onClick={() => setShowShareModal(true)}
-                    className="px-6 py-3 border border-[#CDFD51] text-[#CDFD51] rounded-lg font-semibold text-sm hover:bg-[#CDFD51]/10 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    Share Report
-                  </button>
-                  <button
-                    onClick={() => {
-                      const text = JSON.stringify(results, null, 2);
-                      const blob = new Blob([text], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${playerName || 'player'}-film-report.txt`;
-                      a.click();
-                    }}
-                    className="px-6 py-3 border border-[#555] text-white rounded-lg font-semibold text-sm hover:border-[#CDFD51] hover:text-[#CDFD51] transition-colors"
-                  >
-                    Export Report
-                  </button>
-                </div>
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={saveToProfile}
+                        disabled={saved}
+                        className={`flex-1 min-w-[140px] py-3 rounded-lg font-semibold text-sm transition-all ${
+                          saved
+                            ? 'bg-[#CDFD51]/20 text-[#CDFD51] border border-[#CDFD51]/30'
+                            : 'bg-[#CDFD51] text-[#1a1a1a] hover:bg-[#b8e845]'
+                        }`}
+                      >
+                        {saved ? 'Saved to Profile' : 'Save to Player Profile'}
+                      </button>
+                      <button
+                        onClick={() => setShowShareModal(true)}
+                        className="px-6 py-3 border border-[#CDFD51] text-[#CDFD51] rounded-lg font-semibold text-sm hover:bg-[#CDFD51]/10 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        Share Report
+                      </button>
+                      <button
+                        onClick={() => {
+                          const text = JSON.stringify(results, null, 2);
+                          const blob = new Blob([text], { type: 'text/plain' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${playerName || 'player'}-film-report.txt`;
+                          a.click();
+                        }}
+                        className="px-6 py-3 border border-[#555] text-white rounded-lg font-semibold text-sm hover:border-[#CDFD51] hover:text-[#CDFD51] transition-colors"
+                      >
+                        Export Report
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
