@@ -29,6 +29,7 @@ serve(async (req: Request) => {
       roster,
       customPrompt,
       position,
+      coachNotes,
     } = body
 
     const videoUrl = youtubeUrl || body.videoUrl
@@ -198,7 +199,15 @@ serve(async (req: Request) => {
             {
               text: `${systemInstructions}
               
-              [NOTE: Direct visual access to the YouTube video was restricted by the creator's privacy/embedding settings. You must evaluate the game based strictly on the provided highlight timestamps, team roster, descriptors, and jersey colors as absolute ground-truth facts. Do not make up plays not supported by these inputs.]
+              [NOTE: Direct visual access to the YouTube video was restricted by the creator's privacy/embedding settings. 
+              ${isCoachAnalysis 
+                ? `You must evaluate the game and populate all plays, wins, challenges, and position spotlight timestamps based strictly on the coach's custom notes:
+                   Coach Notes:
+                   "${coachNotes || 'No custom notes provided'}"
+                   Extract and use the exact timestamps and play descriptions mentioned in these coach notes (e.g. 05:10, 12:45). If no specific timestamps are found in the coach notes, use standard estimations, but do not invent unrelated plays. If coachNotes is empty, state clearly in the assessment that visual access is restricted and no coach notes were provided.`
+                : `You must evaluate the game based strictly on the provided highlight timestamps (${startTime || 'None'}), team roster, descriptors, and jersey colors as absolute ground-truth facts.`
+              }
+              Do not make up plays not supported by these inputs.]
               
               ${customPrompt || ''}
               Film URL: ${videoUrl || 'No URL provided'}

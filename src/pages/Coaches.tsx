@@ -93,6 +93,7 @@ const Coaches: React.FC = () => {
           gameType,
           analysisType: 'coach-game',
           jerseyColor,
+          coachNotes,
         },
       });
 
