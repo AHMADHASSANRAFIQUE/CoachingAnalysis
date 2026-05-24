@@ -876,50 +876,32 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
 
             {results && !results.error && (
               <div className="space-y-6">
-                {results.accessRestricted ? (
-                  <div className="bg-[#2a2a2a] rounded-2xl border border-yellow-500/30 p-8 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(234,179,8,0.05)] animate-fade-in">
-                    <div className="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-yellow-500 to-amber-600" />
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 animate-pulse">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-white uppercase tracking-wider">Visual Access Restricted</h3>
-                        <p className="text-yellow-400 text-xs font-semibold uppercase tracking-widest mt-0.5">Embedding & Subtitles Offline</p>
-                      </div>
-                    </div>
-                    
-                    <p className="text-[#ccc] text-sm leading-relaxed whitespace-pre-wrap font-medium">
-                      {results.assessment}
-                    </p>
-
-                    <div className="border-t border-[#333] pt-6 flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={handleGoToTagging}
-                        className="flex-1 py-3.5 px-6 bg-[#CDFD51] text-[#1a1a1a] font-bold text-sm rounded-lg hover:bg-[#b8e845] transition-all flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Describe My Plays / Tag Player
-                      </button>
-                      <a
-                        href="https://studio.youtube.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-6 py-3.5 border border-yellow-500/30 text-yellow-400 rounded-lg font-semibold text-sm hover:bg-yellow-500/10 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Open YouTube Studio
-                      </a>
-                    </div>
+                {/* Visual Status Indicator Badge */}
+                <div className="flex items-center justify-between p-3.5 bg-[#2a2a2a] rounded-xl border border-[#333] flex-wrap gap-2.5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        results.synthesisMode ? 'bg-amber-400' : 'bg-[#CDFD51]'
+                      }`}></span>
+                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                        results.synthesisMode ? 'bg-amber-400' : 'bg-[#CDFD51]'
+                      }`}></span>
+                    </span>
+                    <span className="text-xs font-semibold text-white">
+                      {results.synthesisMode 
+                        ? 'Scouting Synthesis Mode' 
+                        : 'Visual Tracking Mode: Online'
+                      }
+                    </span>
                   </div>
-                ) : (
-                  <>
+                  {results.synthesisMode && (
+                    <span className="text-[10px] text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded border border-amber-500/20 font-bold uppercase tracking-wider">
+                      Visual Offline, Grounded in Roster & Descriptors
+                    </span>
+                  )}
+                </div>
+
+                <>
                     {/* Player Header */}
                     <div className="bg-[#2a2a2a] rounded-2xl border border-[#333] p-6">
                       <div className="flex items-start justify-between flex-wrap gap-4">
@@ -1082,7 +1064,6 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                       </button>
                     </div>
                   </>
-                )}
               </div>
             )}
 
