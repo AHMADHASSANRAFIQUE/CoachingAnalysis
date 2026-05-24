@@ -97,7 +97,17 @@ const Coaches: React.FC = () => {
       });
 
       if (error) throw error;
-      if (data?.data) setReport(data.data);
+      if (data?.data) {
+        let finalReport = data.data;
+        if (typeof finalReport.assessment === 'string' && finalReport.assessment.trim().startsWith('{')) {
+          try {
+            finalReport = JSON.parse(finalReport.assessment.trim());
+          } catch (e) {
+            console.error('Frontend JSON fallback parsing failed:', e);
+          }
+        }
+        setReport(finalReport);
+      }
     } catch (err: any) {
       console.error('Analysis error:', err);
       setReport({ error: err.message || 'Analysis failed' });

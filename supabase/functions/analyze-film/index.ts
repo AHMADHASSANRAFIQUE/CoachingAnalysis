@@ -101,7 +101,7 @@ serve(async (req: Request) => {
          IMPORTANT: NEVER reference NFL players or external teams like Duncanville, Desoto, or others. 
          The ONLY two teams in this game are: ${teamName} (Your Team, wearing ${jerseyColor || 'N/A'} jerseys) vs ${opponent || 'the Opponent'}.
          CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play by visually observing the film. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
-         CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide 2-4 key play timestamps with specific descriptions of what happened. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
+         CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide exactly 1-2 key play timestamps with specific descriptions of what happened. Keep descriptions extremely concise to ensure the output fits completely without getting truncated. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
          CRITICAL - CONSISTENCY: For any given film URL, your evaluation MUST be highly consistent and reproducible. Base all feedback strictly on observable film evidence. Do not speculate or fabricate plays.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
@@ -256,18 +256,63 @@ serve(async (req: Request) => {
 
     let jsonString = result.candidates[0].content.parts[0].text;
     
-    // Bulletproof JSON extractor: extracts only the first '{' to the last '}'
+    // Bulletproof JSON extraction: extract from the first '{' to the end of the text
     const firstBrace = jsonString.indexOf('{');
-    const lastBrace = jsonString.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+    if (firstBrace !== -1) {
+      jsonString = jsonString.substring(firstBrace);
     }
     
+    // Helper function to repair truncated or incomplete JSON
+    const repairTruncatedJson = (str: string): string => {
+      let cleanStr = str.trim();
+      
+      // Close unclosed string literal if truncated inside a string
+      let inString = false;
+      for (let i = 0; i < cleanStr.length; i++) {
+        if (cleanStr[i] === '"' && (i === 0 || cleanStr[i-1] !== '\\')) {
+          inString = !inString;
+        }
+      }
+      if (inString) {
+        cleanStr += '"';
+      }
+      
+      // Track open brackets and braces
+      const stack: string[] = [];
+      inString = false;
+      for (let i = 0; i < cleanStr.length; i++) {
+        const char = cleanStr[i];
+        if (char === '"' && (i === 0 || cleanStr[i-1] !== '\\')) {
+          inString = !inString;
+        }
+        if (!inString) {
+          if (char === '{' || char === '[') {
+            stack.push(char);
+          } else if (char === '}' || char === ']') {
+            stack.pop();
+          }
+        }
+      }
+      
+      // Append closing brackets in reverse order to repair syntax
+      while (stack.length > 0) {
+        const lastOpened = stack.pop();
+        if (lastOpened === '{') {
+          cleanStr += '}';
+        } else if (lastOpened === '[') {
+          cleanStr += ']';
+        }
+      }
+      
+      return cleanStr;
+    };
+
     let analysisData;
     try {
-      analysisData = JSON.parse(jsonString);
+      const repairedJson = repairTruncatedJson(jsonString);
+      analysisData = JSON.parse(repairedJson);
     } catch (e) {
-      console.log('JSON parsing failed, falling back to raw text response.');
+      console.log('JSON parsing and repair failed, falling back to raw text response.', e);
       analysisData = {
         overallGrade: "N/A",
         letterGrade: "N/A",
