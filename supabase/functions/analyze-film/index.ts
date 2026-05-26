@@ -158,7 +158,7 @@ serve(async (req: Request) => {
          The ONLY two teams in this game are: ${teamName} (Your Team, wearing ${jerseyColor || 'N/A'} jerseys) vs ${opponent || 'the Opponent'}.
          CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play by visually observing the film. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
          CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide exactly 1-2 key play timestamps with specific descriptions of what happened. Keep descriptions extremely concise to ensure the output fits completely without getting truncated. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
-         CRITICAL - CONSISTENCY: For any given film URL, your evaluation MUST be highly consistent and reproducible. Base all feedback strictly on observable film evidence. Do not speculate or fabricate plays.`
+         CRITICAL - ZERO HALLUCINATION RULE: Base all feedback strictly on the actual visual events, actions, team colors, and timings that are directly visible in the video track. You MUST NOT speculate, assume, or fabricate any plays, scores, or activities that do not occur in the video. If an action is not clearly visible at a timestamp, do not grade it. Ground every single play description in precise visual evidence from the film.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
          The game is: ${teamName} vs ${opponent || 'the Opponent'}.
@@ -166,7 +166,8 @@ serve(async (req: Request) => {
          Roster:
          ${roster || 'Not provided'}
          
-         Visually track the player wearing Jersey #${jerseyNumber || 'N/A'} (Name: ${playerName || 'N/A'}) who matches these descriptors. Evaluate ONLY their play execution at the designated timestamps. Do NOT attribute or credit plays from other players. Use the video track to visually verify their execution.`;
+         Visually track the player wearing Jersey #${jerseyNumber || 'N/A'} (Name: ${playerName || 'N/A'}) who matches these descriptors. Evaluate ONLY their play execution at the designated timestamps. Do NOT attribute or credit plays from other players. Use the video track to visually verify their execution.
+         CRITICAL - ZERO HALLUCINATION RULE: Base all feedback strictly on the actual visual events, actions, and technique of the designated player at the provided timestamps. You MUST NOT speculate, assume, or fabricate any plays, completions, tackles, or activities that do not occur in the video track. Ground every single feedback in precise visual evidence from the film.`;
 
     // Call Gemini API with direct visual mode first, falling back to text-only mode on failure
     let response;
