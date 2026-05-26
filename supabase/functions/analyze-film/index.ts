@@ -285,7 +285,11 @@ serve(async (req: Request) => {
                 ? `Additionally, we have successfully scraped the video's automatic audio transcript/subtitles below. Use these exact events, timestamps, and commentary as the core factual basis for your analysis, plays, challenges, wins, and spotlights:
                    Audio Transcript:
                    ${transcriptText}`
-                : `Since direct visual/audio feeds are restricted, you must dynamically and realistically simulate/synthesize the specific play-by-play events, challenges, wins, and spotlights. Make them sound extremely realistic, professional, and tailored to the player's position, age group, and team matchup.`
+                : `Since direct visual/audio feeds are restricted, you must operate in complete "SCOUTING SYNTHESIS MODE". 
+                   
+                   CRITICAL HONESTY & TRUST RULE: Rely strictly on any custom descriptors and play action descriptions provided by the coach. If no custom notes or play descriptions are provided for a timestamp, you MUST NOT fabricate fake events (e.g., do not say a pass was completed or dropped if you do not know). Instead, for that play timestamp, you MUST output a helpful placeholder: 'At [MM:SS], please add a play description in the Tagging panel (e.g. \"completed 15yd pass\") to unlock Coach Legend\'s technique critique!'
+                   
+                   Rely on the team matchup, roster, and general strategy parameters to populate the challenges, wins, and play-calling strategy with premium, highly realistic, and structured assessments.`
               }
               
               CRITICAL: You MUST include this key in the root of your JSON output:
