@@ -168,15 +168,12 @@ serve(async (req: Request) => {
          
          Visually track the player wearing Jersey #${jerseyNumber || 'N/A'} (Name: ${playerName || 'N/A'}) who matches these descriptors. Evaluate ONLY their play execution at the designated timestamps. Do NOT attribute or credit plays from other players. Use the video track to visually verify their execution.`;
 
-    // Using gemini-2.5-flash for stable production visual analysis
-    const model = "gemini-2.5-flash";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
     // Call Gemini API with direct visual mode first, falling back to text-only mode on failure
     let response;
     let result;
     const maxRetries = 3;
     let fallbackToTextOnly = false;
+    let activeVisualModel = "gemini-3.5-flash";
     
     // Level 1: Direct YouTube Visual Mode
     if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
@@ -198,7 +195,9 @@ serve(async (req: Request) => {
             }
           ];
 
-          response = await fetch(apiUrl, {
+          const currentApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeVisualModel}:generateContent?key=${apiKey}`;
+
+          response = await fetch(currentApiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -228,7 +227,8 @@ serve(async (req: Request) => {
           }
 
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
-            console.log(`Visual Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+            console.log(`Visual Attempt ${attempt + 1} failed due to high demand. Swapping to fallback model and retrying...`);
+            activeVisualModel = activeVisualModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
             if (attempt < maxRetries - 1) {
               await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
               continue;
@@ -259,6 +259,8 @@ serve(async (req: Request) => {
           console.log("No subtitles/transcript found for this video.");
         }
       }
+
+      let activeTextModel = "gemini-3.5-flash";
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -298,7 +300,9 @@ serve(async (req: Request) => {
             }
           ];
 
-          response = await fetch(apiUrl, {
+          const currentApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeTextModel}:generateContent?key=${apiKey}`;
+
+          response = await fetch(currentApiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -317,7 +321,8 @@ serve(async (req: Request) => {
           result = await response.json();
 
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
-            console.log(`Text Attempt ${attempt + 1} failed due to high demand. Retrying...`);
+            console.log(`Text Attempt ${attempt + 1} failed due to high demand. Switching to fallback model and retrying...`);
+            activeTextModel = activeTextModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
             if (attempt < maxRetries - 1) {
               await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
               continue;
