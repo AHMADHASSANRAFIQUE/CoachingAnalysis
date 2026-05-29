@@ -363,6 +363,12 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
         console.error('Supabase function error:', invokeError);
         let detail = '';
         let isEmbeddingDisabled = false;
+
+        // Zero-failure fallback: check status code directly
+        if ((invokeError as any).status === 403 || (invokeError as any).context?.status === 403) {
+          isEmbeddingDisabled = true;
+        }
+
         try {
           const errorText = await invokeError.context?.text();
           detail = errorText || '';

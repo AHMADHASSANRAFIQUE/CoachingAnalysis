@@ -187,6 +187,12 @@ const Coaches: React.FC = () => {
         console.error('Supabase function error:', error);
         let detail = '';
         let isEmbeddingDisabled = false;
+
+        // Zero-failure fallback: check status code directly
+        if ((error as any).status === 403 || (error as any).context?.status === 403) {
+          isEmbeddingDisabled = true;
+        }
+
         try {
           const errorText = await error.context?.text();
           detail = errorText || '';
