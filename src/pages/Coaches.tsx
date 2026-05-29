@@ -155,8 +155,11 @@ const Coaches: React.FC = () => {
     }
   }, [report, youtubeUrl, teamName, jerseyColor, opponent, playerTags]);
 
-  const analyzeGame = async (forceSynthesis = false) => {
+  const analyzeGame = async (forceSynthesis: any = false) => {
     if (!youtubeUrl) return;
+
+    const isSynthesis = forceSynthesis === true;
+
     setLoading(true);
     setReport(null);
     setSaved(false);
@@ -176,7 +179,7 @@ const Coaches: React.FC = () => {
           analysisType: 'coach-game',
           jerseyColor,
           coachNotes,
-          allowSynthesis: forceSynthesis,
+          allowSynthesis: isSynthesis,
         },
       });
 

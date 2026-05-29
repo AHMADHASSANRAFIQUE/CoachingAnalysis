@@ -300,8 +300,10 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
     setPlayerTags(playerTags.filter(t => t.id !== id));
   };
 
-  const analyzeFilm = async (forceSynthesis = false) => {
+  const analyzeFilm = async (forceSynthesis: any = false) => {
     if (!youtubeUrl) return;
+
+    const isSynthesis = forceSynthesis === true;
 
     if (!roster.trim()) {
       alert("Please provide the Team Roster (Names and Jersey Numbers). This is mandatory for AI to accurately identify your player.");
@@ -342,7 +344,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           analysisType: 'player',
           jerseyColor,
           roster,
-          allowSynthesis: forceSynthesis,
+          allowSynthesis: isSynthesis,
           customPrompt: buildGeminiPrompt({
             name: playerName,
             jersey: playerTags[0]?.jersey || jerseyNumber,
