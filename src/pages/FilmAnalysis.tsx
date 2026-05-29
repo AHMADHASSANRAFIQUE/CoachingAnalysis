@@ -109,6 +109,7 @@ const FilmAnalysis: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPricingAd, setShowPricingAd] = useState(false);
   const [analysisCount, setAnalysisCount] = useState(0);
+  const [showEmbeddingError, setShowEmbeddingError] = useState(false);
 
   const handleGoToTagging = () => {
     const elem = document.getElementById('player-tagging-section');
@@ -299,7 +300,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
     setPlayerTags(playerTags.filter(t => t.id !== id));
   };
 
-  const analyzeFilm = async () => {
+  const analyzeFilm = async (forceSynthesis = false) => {
     if (!youtubeUrl) return;
 
     if (!roster.trim()) {
@@ -341,6 +342,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           analysisType: 'player',
           jerseyColor,
           roster,
+          allowSynthesis: forceSynthesis,
           customPrompt: buildGeminiPrompt({
             name: playerName,
             jersey: playerTags[0]?.jersey || jerseyNumber,
@@ -358,12 +360,29 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
       if (invokeError) {
         console.error('Supabase function error:', invokeError);
         let detail = '';
+        let isEmbeddingDisabled = false;
         try {
           const errorText = await invokeError.context?.text();
           detail = errorText || '';
+          if (detail) {
+            const parsed = JSON.parse(detail);
+            if (parsed.error === 'embedding_disabled') {
+              isEmbeddingDisabled = true;
+            }
+          }
         } catch (e) {}
         
+        if (isEmbeddingDisabled) {
+          setShowEmbeddingError(true);
+          return;
+        }
+
         throw new Error(`AI Analysis failed: ${invokeError.message}. ${detail ? `Server says: ${detail}` : 'Check if GEMINI_API_KEY is set in Supabase Secrets.'}`);
+      }
+
+      if (data?.error === 'embedding_disabled') {
+        setShowEmbeddingError(true);
+        return;
       }
 
       if (data?.data) {
@@ -1079,6 +1098,116 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           </div>
         </div>
       </div>
+
+      {/* YouTube Embedding Restricted Modal */}
+      {showEmbeddingError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden">
+            {/* Red/Amber Warning Accent Top Strip */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-red-500 via-amber-500 to-red-500" />
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setShowEmbeddingError(false)} 
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="p-6 md:p-8 space-y-6">
+              {/* Warning Icon & Header */}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center flex-shrink-0 text-red-500 animate-pulse">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider">
+                    YouTube Embedding Restricted
+                  </h2>
+                  <p className="text-red-400 text-xs font-semibold uppercase tracking-widest mt-0.5">
+                    Direct Visual Stream Blocked by YouTube
+                  </p>
+                </div>
+              </div>
+
+              {/* Core explanation */}
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Coach Legend cannot watch this video because YouTube has restricted embedding or the video is set to private. Let's fix this in <span className="text-[#CDFD51] font-semibold">15 seconds</span>!
+              </p>
+
+              {/* Quick Steps Box */}
+              <div className="bg-[#151515]/90 border border-white/5 rounded-xl p-5 md:p-6 space-y-4">
+                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Visibility & Embedding Rules
+                </div>
+                
+                <ul className="space-y-3.5">
+                  <li className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-[#CDFD51]/15 text-[#CDFD51] flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+                      <strong className="text-white">Disable Private Mode:</strong> Video visibility must be set to <strong className="text-[#CDFD51]">Unlisted</strong> or <strong className="text-[#CDFD51]">Public</strong>. Private videos completely hide embedding options and block AI access!
+                    </p>
+                  </li>
+                  
+                  <li className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-[#CDFD51]/15 text-[#CDFD51] flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+                      <strong className="text-white">Enable Embedding in YouTube Studio:</strong>
+                      <span className="block mt-1 text-gray-400 pl-2 border-l-2 border-white/10 space-y-1">
+                        <span className="block">• Go to <a href="https://studio.youtube.com" target="_blank" rel="noopener noreferrer" className="text-[#CDFD51] underline hover:text-[#b8e845]">studio.youtube.com</a> and click <strong className="text-white">Content</strong>.</span>
+                        <span className="block">• Click your video, scroll down, and click <strong className="text-white">SHOW MORE</strong>.</span>
+                        <span className="block">• Scroll down to <strong className="text-white">License and distribution</strong> and check <strong className="text-[#CDFD51]">"Allow embedding"</strong>.</span>
+                        <span className="block">• Click <strong className="text-white">Save</strong> at the top right, then retry!</span>
+                      </span>
+                    </p>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Warning Badge */}
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-amber-400 text-xs leading-normal">
+                  If you are not the owner of this YouTube channel, you cannot change these settings. However, you can bypass this visual check and use our advanced synthesis engine below.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  onClick={() => setShowEmbeddingError(false)}
+                  className="flex-1 py-3.5 bg-white text-[#1a1a1a] font-bold text-sm rounded-lg hover:bg-gray-200 transition-all text-center"
+                >
+                  Close & Fix Video
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setShowEmbeddingError(false);
+                    analyzeFilm(true);
+                  }}
+                  className="flex-1 py-3.5 border border-[#CDFD51] text-[#CDFD51] font-bold text-sm rounded-lg hover:bg-[#CDFD51]/10 transition-all text-center"
+                >
+                  Analyze in Scouting Synthesis Mode
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pricing Ad Modal */}
       <PricingAdModal

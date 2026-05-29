@@ -85,6 +85,7 @@ serve(async (req: Request) => {
       customPrompt,
       position,
       coachNotes,
+      allowSynthesis,
     } = body
 
     const videoUrl = youtubeUrl || body.videoUrl
@@ -220,11 +221,22 @@ serve(async (req: Request) => {
           if (
             response.status === 403 || 
             response.status === 400 || 
-            (result.error && (result.error.message?.includes('permission') || result.error.message?.includes('fetch') || result.error.message?.includes('fetch content')))
+            (result.error && (result.error.message?.includes('permission') || result.error.message?.includes('fetch') || result.error.message?.includes('fetch content') || result.error.message?.includes('embedding')))
           ) {
-            console.log("YouTube visual access restricted (403/400). Automatically falling back to Text-Only Grounded Mode...");
-            fallbackToTextOnly = true;
-            break;
+            if (allowSynthesis === true) {
+              console.log("YouTube visual access restricted. allowSynthesis is true, falling back to text mode...");
+              fallbackToTextOnly = true;
+              break;
+            } else {
+              console.log("YouTube visual access restricted. allowSynthesis is false, blocking request with embedding_disabled error...");
+              return new Response(
+                JSON.stringify({ 
+                  error: "embedding_disabled", 
+                  message: "YouTube visual embedding is disabled or restricted. Video visibility must be set to Unlisted/Public, and Allow Embedding must be checked." 
+                }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
 
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
@@ -238,8 +250,18 @@ serve(async (req: Request) => {
           break;
         } catch (e) {
           console.error(`Visual Attempt ${attempt + 1} error:`, e);
-          fallbackToTextOnly = true;
-          break;
+          if (allowSynthesis === true) {
+            fallbackToTextOnly = true;
+            break;
+          } else {
+            return new Response(
+              JSON.stringify({ 
+                error: "embedding_disabled", 
+                message: "YouTube visual embedding is disabled or restricted. Video visibility must be set to Unlisted/Public, and Allow Embedding must be checked." 
+              }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
     } else {
