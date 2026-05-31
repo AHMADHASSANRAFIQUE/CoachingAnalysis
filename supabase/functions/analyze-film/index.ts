@@ -159,6 +159,7 @@ serve(async (req: Request) => {
          The ONLY two teams in this game are: ${teamName} (Your Team, wearing ${jerseyColor || 'N/A'} jerseys) vs ${opponent || 'the Opponent'}.
          CRITICAL - OFFENSE vs DEFENSE: You MUST correctly identify which team is on offense and which is on defense on each play by visually observing the film. Only evaluate ${teamName}'s players when ${teamName} is on the field. Do NOT report offensive stats or plays for ${teamName} when the defense is on the field, and vice versa.
          CRITICAL - POSITION SPOTLIGHT: Analyze each position group (QB, WR, RB, OL, DL, LB, DB) based ONLY on what you can directly observe in the film. For each position group, provide exactly 1-2 key play timestamps with specific descriptions of what happened. Keep descriptions extremely concise to ensure the output fits completely without getting truncated. The playerTag field should be left empty ("") — coaches will fill that in manually. Do NOT invent player names. Only include positions that were clearly visible and active in the film.
+         CRITICAL - COACH NOTES ALIGNMENT: If the coach has provided any specific play-by-play timestamps or descriptors in the Coach Notes, you MUST prioritize and evaluate those exact plays. Keep your description of what happened strictly aligned with the coach's notes (e.g. if the coach says a play at 10:54 was a punt, do not describe it as a pass; if they say they were on defense at 12:55, do not describe it as an offensive scramble).
          CRITICAL - ZERO HALLUCINATION RULE: Base all feedback strictly on the actual visual events, actions, team colors, and timings that are directly visible in the video track. You MUST NOT speculate, assume, or fabricate any plays, scores, or activities that do not occur in the video. If an action is not clearly visible at a timestamp, do not grade it. Ground every single play description in precise visual evidence from the film.`
       : `Analyze this football film for a specific player profile. Focus on the player's individual performance, technique, and areas for growth.
          IMPORTANT: DO NOT hallucinate NFL data or professional player names. This is amateur/youth football. 
@@ -190,7 +191,14 @@ serve(async (req: Request) => {
               }
             },
             {
-              text: `${systemInstructions}\n\n${customPrompt || ''}\n\nIMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
+              text: `${systemInstructions}
+              
+              ${coachNotes ? `COACH'S DIRECT PLAY-BY-PLAY NOTES (Ground your timestamps, play actions, and spotlights in these notes. If a timestamp is listed here, analyze that specific play's technique visually):
+              ${coachNotes}` : ''}
+              
+              ${customPrompt || ''}
+              
+              IMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
               
               The JSON structure MUST be:
               ${selectedSchema}`
