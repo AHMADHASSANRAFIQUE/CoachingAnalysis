@@ -191,17 +191,15 @@ serve(async (req: Request) => {
               }
             },
             {
-              text: `${systemInstructions}
-              
-              ${coachNotes ? `COACH'S DIRECT PLAY-BY-PLAY NOTES (Ground your timestamps, play actions, and spotlights in these notes. If a timestamp is listed here, analyze that specific play's technique visually):
-              ${coachNotes}` : ''}
-              
-              ${customPrompt || ''}
-              
-              IMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
-              
-              The JSON structure MUST be:
-              ${selectedSchema}`
+              text: `${coachNotes ? `COACH'S DIRECT PLAY-BY-PLAY NOTES (Ground your timestamps, play actions, and spotlights in these notes. If a timestamp is listed here, analyze that specific play's technique visually):
+${coachNotes}` : ''}
+
+${customPrompt || ''}
+
+Analyze this game film thoroughly. Provide deep tactical insights on every play you observe.
+
+Return your analysis as JSON matching this structure:
+${selectedSchema}`
             }
           ];
 
@@ -213,12 +211,15 @@ serve(async (req: Request) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: systemInstructions }]
+              },
               contents: [{ parts }],
               generationConfig: {
-                temperature: 0.0,
-                topK: 40,
+                temperature: 0.5,
                 topP: 0.95,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 32768,
+                responseMimeType: "application/json",
               }
             })
           });
@@ -297,41 +298,37 @@ serve(async (req: Request) => {
         try {
           const parts = [
             {
-              text: `${systemInstructions}
-              
-              [NOTE: Direct visual access to the YouTube video is restricted. You MUST run in complete "SCOUTING SYNTHESIS MODE" to generate a highly realistic, extremely detailed, and professional game analysis (or player scouting report) to ensure the user gets a fully functional, standard-setting coaching dashboard!
-              
-              CRITICAL - NO ACCESS DENIED / RESTRICTED MESSAGES: You MUST NEVER output disclaimers like 'Film Access Restricted', 'Unable to Assess', 'Access Restricted', or 'Detailed analysis is not possible'. Every single field in the JSON payload (including plays, challenges, wins, play-calling details, and spotlights) MUST be fully, beautifully, and realistically populated. The analysis must feel extremely professional, high-grade, and seamlessly written as if you had watched the entire film.
-              
-              You MUST ground your simulated/synthesized analysis in the following provided parameters to keep the report highly customized and accurate:
-              - Your Team Name: ${teamName || 'My Team'} (${jerseyColor || 'N/A'} jerseys) vs Opponent: ${opponent || 'the Opponent'}
-              - Player Name: ${playerName || 'N/A'}, Position: ${position}, Jersey: ${jerseyNumber || 'N/A'}
-              - Descriptors: ${descriptors || 'None'}
-              - Highlights Timestamps: ${startTime || '01:24, 03:45, 07:12'}
-              - Team Roster: ${roster || 'Not provided'}
-              - Coach's Custom Notes (if any): ${coachNotes || 'None'}
-              
-              ${transcriptText 
-                ? `Additionally, we have successfully scraped the video's automatic audio transcript/subtitles below. Use these exact events, timestamps, and commentary as the core factual basis for your analysis, plays, challenges, wins, and spotlights:
-                   Audio Transcript:
-                   ${transcriptText}`
-                : `Since direct visual/audio feeds are restricted, you must operate in complete "SCOUTING SYNTHESIS MODE". 
-                   
-                   CRITICAL HONESTY & TRUST RULE: Rely strictly on any custom descriptors and play action descriptions provided by the coach. If no custom notes or play descriptions are provided for a timestamp, you MUST NOT fabricate fake events (e.g., do not say a pass was completed or dropped if you do not know). Instead, for that play timestamp, you MUST output a helpful placeholder: 'At [MM:SS], please add a play description in the Tagging panel (e.g. \"completed 15yd pass\") to unlock Coach Legend\'s technique critique!'
-                   
-                   Rely on the team matchup, roster, and general strategy parameters to populate the challenges, wins, and play-calling strategy with premium, highly realistic, and structured assessments.`
-              }
-              
-              CRITICAL: You MUST include this key in the root of your JSON output:
-              "synthesisMode": true]
-              
-              ${customPrompt || ''}
-              Film URL: ${videoUrl || 'No URL provided'}
-              
-              IMPORTANT: You MUST return a valid JSON object only. Be concise to ensure the response is not truncated. Do not include any markdown formatting like \`\`\`json. 
-              
-              The JSON structure MUST be:
-              ${selectedSchema}`
+              text: `[NOTE: Direct visual access to the YouTube video is restricted. You MUST run in complete "SCOUTING SYNTHESIS MODE" to generate a highly realistic, extremely detailed, and professional game analysis (or player scouting report) to ensure the user gets a fully functional, standard-setting coaching dashboard!
+
+CRITICAL - NO ACCESS DENIED / RESTRICTED MESSAGES: You MUST NEVER output disclaimers like 'Film Access Restricted', 'Unable to Assess', 'Access Restricted', or 'Detailed analysis is not possible'. Every single field in the JSON payload (including plays, challenges, wins, play-calling details, and spotlights) MUST be fully, beautifully, and realistically populated. The analysis must feel extremely professional, high-grade, and seamlessly written as if you had watched the entire film.
+
+You MUST ground your simulated/synthesized analysis in the following provided parameters to keep the report highly customized and accurate:
+- Your Team Name: ${teamName || 'My Team'} (${jerseyColor || 'N/A'} jerseys) vs Opponent: ${opponent || 'the Opponent'}
+- Player Name: ${playerName || 'N/A'}, Position: ${position}, Jersey: ${jerseyNumber || 'N/A'}
+- Descriptors: ${descriptors || 'None'}
+- Highlights Timestamps: ${startTime || '01:24, 03:45, 07:12'}
+- Team Roster: ${roster || 'Not provided'}
+- Coach's Custom Notes (if any): ${coachNotes || 'None'}
+
+${transcriptText 
+  ? `Additionally, we have successfully scraped the video's automatic audio transcript/subtitles below. Use these exact events, timestamps, and commentary as the core factual basis for your analysis, plays, challenges, wins, and spotlights:
+Audio Transcript:
+${transcriptText}`
+  : `Since direct visual/audio feeds are restricted, you must operate in complete "SCOUTING SYNTHESIS MODE". 
+
+CRITICAL HONESTY & TRUST RULE: Rely strictly on any custom descriptors and play action descriptions provided by the coach. If no custom notes or play descriptions are provided for a timestamp, you MUST NOT fabricate fake events (e.g., do not say a pass was completed or dropped if you do not know). Instead, for that play timestamp, you MUST output a helpful placeholder: 'At [MM:SS], please add a play description in the Tagging panel (e.g. "completed 15yd pass") to unlock Coach Legend\'s technique critique!'
+
+Rely on the team matchup, roster, and general strategy parameters to populate the challenges, wins, and play-calling strategy with premium, highly realistic, and structured assessments.`
+}
+
+CRITICAL: You MUST include this key in the root of your JSON output:
+"synthesisMode": true]
+
+${customPrompt || ''}
+Film URL: ${videoUrl || 'No URL provided'}
+
+Return your analysis as JSON matching this structure:
+${selectedSchema}`
             }
           ];
 
@@ -343,12 +340,15 @@ serve(async (req: Request) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: systemInstructions }]
+              },
               contents: [{ parts }],
               generationConfig: {
-                temperature: 0.0,
-                topK: 40,
+                temperature: 0.5,
                 topP: 0.95,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 32768,
+                responseMimeType: "application/json",
               }
             })
           });
