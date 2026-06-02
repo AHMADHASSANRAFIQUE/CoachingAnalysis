@@ -176,7 +176,7 @@ serve(async (req: Request) => {
     let result;
     const maxRetries = 3;
     let fallbackToTextOnly = false;
-    let activeVisualModel = "gemini-3.5-flash";
+    let activeVisualModel = "gemini-2.5-flash";
     
     // Level 1: Direct YouTube Visual Mode
     if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
@@ -266,7 +266,7 @@ ${selectedSchema}`
           if (response.status === 400) {
             console.error(`Gemini API 400 Error (not embedding): ${result.error?.message}`);
             if (attempt < maxRetries - 1) {
-              activeVisualModel = activeVisualModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
+              activeVisualModel = activeVisualModel === "gemini-2.5-flash" ? "gemini-2.0-flash" : "gemini-2.5-flash";
               console.log(`Switching to ${activeVisualModel} and retrying...`);
               await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
               continue;
@@ -275,7 +275,7 @@ ${selectedSchema}`
 
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
             console.log(`Visual Attempt ${attempt + 1} failed due to high demand. Swapping to fallback model and retrying...`);
-            activeVisualModel = activeVisualModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
+            activeVisualModel = activeVisualModel === "gemini-2.5-flash" ? "gemini-2.0-flash" : "gemini-2.5-flash";
             if (attempt < maxRetries - 1) {
               await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
               continue;
@@ -325,7 +325,7 @@ ${selectedSchema}`
         }
       }
 
-      let activeTextModel = "gemini-3.5-flash";
+      let activeTextModel = "gemini-2.5-flash";
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -390,7 +390,7 @@ ${selectedSchema}`
 
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
             console.log(`Text Attempt ${attempt + 1} failed due to high demand. Switching to fallback model and retrying...`);
-            activeTextModel = activeTextModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
+            activeTextModel = activeTextModel === "gemini-2.5-flash" ? "gemini-2.0-flash" : "gemini-2.5-flash";
             if (attempt < maxRetries - 1) {
               await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
               continue;
