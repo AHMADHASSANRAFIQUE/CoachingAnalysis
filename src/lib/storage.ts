@@ -283,8 +283,9 @@ export const getCoachReports = async (): Promise<CoachGameReport[]> => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching coach reports:', error);
-    return [];
+    console.error('Error fetching coach reports from Supabase, falling back to localStorage:', error);
+    const localData = localStorage.getItem('legend_coach_reports');
+    return localData ? JSON.parse(localData) : [];
   }
 
   return (data || []).map(r => ({
@@ -325,8 +326,11 @@ export const saveCoachReport = async (report: CoachGameReport): Promise<CoachGam
     .single();
 
   if (error) {
-    console.error('Error saving coach report:', error);
-    return null;
+    console.error('Error saving coach report to Supabase, saving to localStorage instead:', error);
+    const reports = JSON.parse(localStorage.getItem('legend_coach_reports') || '[]');
+    reports.push(report);
+    localStorage.setItem('legend_coach_reports', JSON.stringify(reports));
+    return report;
   }
 
   return data ? { ...report, id: data.id } : null;
@@ -348,8 +352,11 @@ export const deleteCoachReport = async (id: string): Promise<boolean> => {
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Error deleting coach report:', error);
-    return false;
+    console.error('Error deleting coach report from Supabase, removing from localStorage instead:', error);
+    const reports = JSON.parse(localStorage.getItem('legend_coach_reports') || '[]');
+    const filtered = reports.filter((r: any) => r.id !== id);
+    localStorage.setItem('legend_coach_reports', JSON.stringify(filtered));
+    return true;
   }
   return true;
 };

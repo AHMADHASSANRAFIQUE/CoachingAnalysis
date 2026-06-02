@@ -226,12 +226,26 @@ ${selectedSchema}`
 
           result = await response.json();
 
-          // Catch 403 (Embedding Disabled) or 400 (Cannot Fetch Content) and trigger Text-Only Fallback
-          if (
+          // Log Gemini API response for diagnostics
+          console.log(`Gemini API response — Status: ${response.status}, Error: ${result.error?.message || 'none'}, Model: ${activeVisualModel}`);
+
+          // Check if this is specifically an embedding/video access issue
+          const errorMsg = result.error?.message?.toLowerCase() || '';
+          const isEmbeddingError = (
             response.status === 403 || 
-            response.status === 400 || 
-            (result.error && (result.error.message?.includes('permission') || result.error.message?.includes('fetch') || result.error.message?.includes('fetch content') || result.error.message?.includes('embedding')))
-          ) {
+            (response.status === 400 && (
+              errorMsg.includes('permission') || 
+              errorMsg.includes('fetch') || 
+              errorMsg.includes('content') || 
+              errorMsg.includes('embedding') || 
+              errorMsg.includes('video') ||
+              errorMsg.includes('url') ||
+              errorMsg.includes('access')
+            )) ||
+            (result.error && (errorMsg.includes('permission') || errorMsg.includes('fetch content') || errorMsg.includes('embedding')))
+          );
+
+          if (isEmbeddingError) {
             if (allowSynthesis === true) {
               console.log("YouTube visual access restricted. allowSynthesis is true, falling back to text mode...");
               fallbackToTextOnly = true;
@@ -248,6 +262,17 @@ ${selectedSchema}`
             }
           }
 
+          // For non-embedding 400 errors (e.g. invalid API parameters), log and retry
+          if (response.status === 400) {
+            console.error(`Gemini API 400 Error (not embedding): ${result.error?.message}`);
+            if (attempt < maxRetries - 1) {
+              activeVisualModel = activeVisualModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
+              console.log(`Switching to ${activeVisualModel} and retrying...`);
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+              continue;
+            }
+          }
+
           if (response.status === 503 || response.status === 429 || (result.error && result.error.message?.includes('high demand'))) {
             console.log(`Visual Attempt ${attempt + 1} failed due to high demand. Swapping to fallback model and retrying...`);
             activeVisualModel = activeVisualModel === "gemini-3.5-flash" ? "gemini-2.5-flash" : "gemini-3.5-flash";
@@ -257,9 +282,17 @@ ${selectedSchema}`
             }
           }
           break;
-        } catch (e) {
+        } catch (e: any) {
           console.error(`Visual Attempt ${attempt + 1} error:`, e);
-          if (allowSynthesis === true) {
+          // Only treat as embedding error if the error message specifically indicates a video/URL access issue
+          const catchMsg = (e?.message || '').toLowerCase();
+          const isVideoAccessError = catchMsg.includes('video') || catchMsg.includes('url') || catchMsg.includes('embed') || catchMsg.includes('permission') || catchMsg.includes('fetch');
+          if (attempt < maxRetries - 1 && !isVideoAccessError) {
+            // Retry on generic network/transient errors
+            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            continue;
+          }
+          if (allowSynthesis === true || !isVideoAccessError) {
             fallbackToTextOnly = true;
             break;
           } else {
