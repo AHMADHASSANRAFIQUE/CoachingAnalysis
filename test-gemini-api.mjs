@@ -32,9 +32,12 @@ function loadEnv() {
 }
 loadEnv();
 
+// The API key is loaded from the local .env file.
 const API_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
 
-const VIDEO_URL = "https://www.youtube.com/watch?v=6k9UqACx1Cs";
+// NOTE: The video URL MUST have embedding enabled and visibility set to Public/Unlisted.
+// If the video is Private or has embedding disabled, Gemini API will return a 403 "PERMISSION_DENIED" error.
+const VIDEO_URL = "https://www.youtube.com/watch?v=6k9UqACx1Cs"; // Active baseline test video
 const MODEL = "gemini-3.5-flash";
 
 // Exact same system prompt as our backend (coach analysis mode)
