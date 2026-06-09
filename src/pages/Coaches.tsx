@@ -75,6 +75,8 @@ const Coaches: React.FC = () => {
   const { user } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [jerseyColor, setJerseyColor] = useState('');
+  const [roster, setRoster] = useState('');
+  const [playTypes, setPlayTypes] = useState('');
   const [teamName, setTeamName] = useState(getTeamName() || '');
   const [opponent, setOpponent] = useState('');
   const [gameDate, setGameDate] = useState('');
@@ -142,6 +144,8 @@ const Coaches: React.FC = () => {
       setTeamName(data.teamName || '');
       setJerseyColor(data.jerseyColor || '');
       setOpponent(data.opponent || '');
+      setRoster(data.roster || '');
+      setPlayTypes(data.playTypes || '');
       setReport(data.report || null);
       setPlayerTags(data.playerTags || {});
     }
@@ -150,10 +154,10 @@ const Coaches: React.FC = () => {
   useEffect(() => {
     if (report || youtubeUrl || teamName) {
       sessionStorage.setItem('last_coach_analysis', JSON.stringify({
-        youtubeUrl, teamName, jerseyColor, opponent, report, playerTags,
+        youtubeUrl, teamName, jerseyColor, opponent, roster, playTypes, report, playerTags,
       }));
     }
-  }, [report, youtubeUrl, teamName, jerseyColor, opponent, playerTags]);
+  }, [report, youtubeUrl, teamName, jerseyColor, opponent, roster, playTypes, playerTags]);
 
   const analyzeGame = async (forceSynthesis: any = false) => {
     if (!youtubeUrl) return;
@@ -178,6 +182,8 @@ const Coaches: React.FC = () => {
           gameType,
           analysisType: 'coach-game',
           jerseyColor,
+          roster,
+          playTypes,
           coachNotes,
           allowSynthesis: isSynthesis,
         },
@@ -266,7 +272,13 @@ const Coaches: React.FC = () => {
       opponent,
       gameType,
       youtubeUrl,
-      report: reportWithTags,
+      report: {
+        ...reportWithTags,
+        meta: {
+          roster,
+          playTypes,
+        }
+      },
       coachNotes,
       createdAt: new Date().toISOString(),
     };
@@ -371,6 +383,25 @@ const Coaches: React.FC = () => {
                 <option>Scrimmage</option>
                 <option>Practice</option>
               </select>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-[#999] text-xs mb-1">Play Types / Style</label>
+              <input
+                value={playTypes}
+                onChange={e => setPlayTypes(e.target.value)}
+                placeholder="e.g. Spread RPO, Wing-T, Pro-Style, Cover 3 heavy defense"
+                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-[#999] text-xs mb-1">Team Roster (Names & Jersey Numbers)</label>
+              <textarea
+                value={roster}
+                onChange={e => setRoster(e.target.value)}
+                placeholder="e.g. #10 John Doe (QB), #18 Mark Smith (WR)"
+                rows={3}
+                className="w-full bg-[#1a1a1a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none"
+              />
             </div>
           </div>
           <button

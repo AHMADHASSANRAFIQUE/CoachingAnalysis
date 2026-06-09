@@ -98,6 +98,7 @@ const FilmAnalysis: React.FC = () => {
   const [highlightTagging, setHighlightTagging] = useState(false);
   const [jerseyColor, setJerseyColor] = useState('');
   const [roster, setRoster] = useState('');
+  const [playTypes, setPlayTypes] = useState('');
   const [playerTimestamps, setPlayerTimestamps] = useState('');
   const [tagLabel, setTagLabel] = useState('');
   const [playerTags, setPlayerTags] = useState<PlayerTag[]>([]);
@@ -138,6 +139,7 @@ const FilmAnalysis: React.FC = () => {
       setTeamNameState(data.teamName || '');
       setJerseyColor(data.jerseyColor || '');
       setRoster(data.roster || '');
+      setPlayTypes(data.playTypes || '');
       setPlayerTimestamps(data.playerTimestamps || '');
       setResults(data.results || null);
       if (data.results?.suggestedStats) setStats(data.results.suggestedStats);
@@ -178,11 +180,12 @@ const FilmAnalysis: React.FC = () => {
         teamName,
         jerseyColor,
         roster,
+        playTypes,
         playerTimestamps,
         results
       }));
     }
-  }, [results, youtubeUrl, playerName, teamName, jerseyColor, roster, playerTimestamps]);
+  }, [results, youtubeUrl, playerName, teamName, jerseyColor, roster, playTypes, playerTimestamps]);
 
   // Change #2: Real QB Metrics
   const [qbStats, setQbStats] = useState({
@@ -231,6 +234,7 @@ You speak directly, use motivational language, and provide ADVANCED position-spe
 Player: ${playerInfo.name}, #${playerInfo.jersey}, Team: ${playerInfo.teamName} (${playerInfo.jerseyColor || 'N/A'})
 Age/Level: ${playerInfo.ageLevel}
 Team Roster (Mandatory): ${playerInfo.roster || 'Not provided'}
+Play Types / Game Plan Style: ${playerInfo.playTypes || 'Standard schemes'}
 Highlight Timestamps in Film: ${playerInfo.timestamps || 'Throughout film'}
 Description for film identification: ${playerInfo.description}
 CRITICAL INSTRUCTION FOR PLAYER DISAMBIGUATION: When multiple players appear at the same position (e.g., multiple QBs sharing snaps), you MUST evaluate ONLY the specific player active at the provided Highlight Timestamps (${playerInfo.timestamps || 'Throughout film'}). Do NOT credit, attribute, or grade plays from other players at this position.
@@ -344,6 +348,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
           analysisType: 'player',
           jerseyColor,
           roster,
+          playTypes,
           allowSynthesis: isSynthesis,
           customPrompt: buildGeminiPrompt({
             name: playerName,
@@ -351,6 +356,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
             teamName,
             jerseyColor,
             roster,
+            playTypes,
             timestamps: effectiveTimestamps,
             ageLevel: age,
             position,
@@ -429,6 +435,7 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
         ...results,
         meta: {
           roster,
+          playTypes,
           jerseyColor,
           playerTimestamps,
         }
@@ -570,7 +577,18 @@ Grade each: ELITE | DEVELOPING | NEEDS CONSISTENCY`,
                   onChange={(e) => setRoster(e.target.value)}
                   placeholder="Paste player names and numbers (e.g. #12 John Doe)..."
                   rows={3}
-                  className="w-full bg-[#2a2a2a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors resize-none"
+                  className="w-full bg-[#2a2a2a] border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors resize-none mb-4"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">Play Types / Game Plan Style</label>
+                <input
+                  type="text"
+                  value={playTypes}
+                  onChange={(e) => setPlayTypes(e.target.value)}
+                  placeholder="e.g. Spread RPO, Wing-T, Pro-Style"
+                  className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-4 py-3 text-white text-sm placeholder-[#666] focus:border-[#CDFD51] focus:outline-none transition-colors"
                 />
               </div>
 
