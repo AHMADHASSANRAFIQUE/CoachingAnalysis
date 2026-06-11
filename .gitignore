@@ -31,3 +31,5 @@ dist-ssr
 # Local test and diagnostic scripts containing secrets
 test-*.js
 test-*.mjs
+test-*.py
+
